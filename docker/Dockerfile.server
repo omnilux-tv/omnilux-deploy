@@ -78,12 +78,19 @@ COPY --from=builder --chmod=755 /build/apps/web/.output/public apps/web/.output/
 COPY --from=builder --chmod=755 /build/apps/web/.output/server apps/web/.output/server/
 
 # Copy database migrations and entrypoint
-COPY --chmod=755 apps/server/src/db/migrations apps/server/src/db/migrations/
+COPY --chmod=755 apps/server/src/db/migrations /app/migrations/
 COPY --chmod=755 scripts/entrypoint.sh /app/entrypoint.sh
 
-# Create non-root user and writable data directories
-RUN groupadd --system omnilux && \
-    useradd --system --gid omnilux --shell /bin/sh omnilux && \
+# Remove non-runtime metadata that can leak source paths or TypeScript surface
+# details from the published image.
+RUN find /app/packages/plugin-sdk/dist -type f \( -name '*.d.ts' -o -name '*.d.ts.map' \) -delete && \
+    find /app/apps/web/.output/server -type f -name '_tanstack-start-manifest*.mjs' -exec \
+      node -e "const fs=require('node:fs'); for (const file of process.argv.slice(1)) { const source=fs.readFileSync(file,'utf8'); fs.writeFileSync(file, source.replace(/\\s*\"filePath\":\s*\"[^\"]*\",?/g, '')); }" {} +
+
+# Create the runtime user with stable ids that match the default TrueNAS apps
+# ownership used by the self-hosted deployment.
+RUN groupadd --gid 568 omnilux && \
+    useradd --uid 997 --gid omnilux --shell /bin/sh omnilux && \
     mkdir -p /app/data /app/plugins /data && \
     chown omnilux:omnilux /app/data /app/plugins /data
 
@@ -98,8 +105,6 @@ EXPOSE 4000 1900/udp
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:4000/api/health || exit 1
-
-USER omnilux
 
 ENTRYPOINT ["tini", "--"]
 CMD ["/app/entrypoint.sh"]

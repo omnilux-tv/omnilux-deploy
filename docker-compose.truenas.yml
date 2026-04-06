@@ -8,11 +8,9 @@ services:
     restart: unless-stopped
     pull_policy: always
     runtime: nvidia
-    user: "997:568"
     cap_add:
       - NET_ADMIN
     group_add:
-      - "568"   # apps group on TrueNAS media dataset
       - "44"    # video group for /dev/dri GPU access
     sysctls:
       - net.ipv4.conf.all.src_valid_mark=1

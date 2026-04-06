@@ -49,3 +49,4 @@ Runtime deploy assumptions:
 CI ownership:
 
 - `.github/workflows/docker-publish.yml` owns the container publish flow for the extracted deploy repo.
+- That workflow publishes `ghcr.io/omnilux-tv/omnilux`, which is used both for the self-hosted server and for the relay service on the public edge.

@@ -22,12 +22,14 @@ services:
       PORT: 4000
       OMNILUX_LIBRARY_ROOT: /data
       OMNILUX_DB_PATH: /app/data/omnilux.db
+      SUPABASE_URL: ${SUPABASE_URL:-https://shajwravamxdjvmfvilz.supabase.co}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoYWp3cmF2YW14ZGp2bWZ2aWx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzc5MzgsImV4cCI6MjA5MDg1MzkzOH0.UCjcxCjhfRBySGe1y-v7V9VQCrDX-EFp-XvR0aCEDlU}
       TMDB_API_KEY: ${TMDB_API_KEY:-}
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
     volumes:
       - ${OMNILUX_STORAGE_ROOT:-/mnt/Storage/Applications/OmniLux}/data:/app/data
-      - ${OMNILUX_MEDIA_ROOT:-/mnt/media}:/data
+      - ${OMNILUX_MEDIA_ROOT:-/mnt/Storage/data/data/media}:/data
     devices:
       - /dev/dri:/dev/dri
     deploy:

@@ -3,9 +3,10 @@ services:
   # Main application — self-hosted OmniLux server
   # ---------------------------------------------------------------------------
   omnilux:
-    image: omnilux:truenas-local
+    image: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}
     container_name: omnilux
     restart: unless-stopped
+    pull_policy: always
     runtime: nvidia
     user: "997:568"
     cap_add:

@@ -27,7 +27,7 @@ What is still transitional:
 - `docker/Dockerfile.server` still builds against the full OmniLux product checkout layout and expects `apps/`, `packages/`, workspace manifests, and migrations from `../omnilux/` to exist in the build context.
 - `scripts/deploy.sh` and `scripts/deploy.example.sh` are now rewired to sync a sibling `omnilux/` checkout on purpose via `OMNILUX_PRODUCT_REPO`, but the remote deploy root still ends up with the combined product+deploy tree.
 - `scripts/install/install-linux.sh`, `scripts/install/install-macos.sh`, `scripts/install/install-windows.ps1`, and `scripts/install/setup.sh` still target a full product checkout for source builds and service startup.
-- Docker/image publishing CI still lives in `../omnilux/.github/workflows/`.
+- Docker/image publishing CI now lives in `.github/workflows/docker-publish.yml`, but it still assembles a combined build context from sibling `omnilux/` source during CI.
 
 Explicitly not copied in this pass:
 
@@ -45,3 +45,7 @@ Current transitional checkout assumptions:
 
 - `../omnilux/` is the default sibling product repo used by the copied Docker and deploy scripts
 - `OMNILUX_PRODUCT_REPO` can override that path when the workspace layout differs
+
+CI ownership:
+
+- `.github/workflows/docker-publish.yml` owns the container publish flow for the extracted deploy repo.

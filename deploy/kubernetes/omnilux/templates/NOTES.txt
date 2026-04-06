@@ -1,0 +1,23 @@
+OmniLux has been deployed!
+
+{{- if .Values.ingress.enabled }}
+Access the application at:
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+Get the application URL:
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "omnilux.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "ClusterIP" .Values.service.type }}
+Access the application via port-forward:
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "omnilux.fullname" . }} 4000:{{ .Values.service.port }}
+  echo http://localhost:4000
+{{- end }}
+
+Runtime options:
+  GPU: {{ if .Values.gpu.enabled }}yes ({{ .Values.gpu.nvidia.count }} GPU){{ else }}no{{ end }}
+  VPN: {{ if .Values.vpn.enabled }}yes (NET_ADMIN){{ else }}no{{ end }}

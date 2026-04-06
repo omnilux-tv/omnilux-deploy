@@ -1,0 +1,60 @@
+# OmniLux — Docker Compose example
+# Copy this file and customize for your environment:
+#   cp docker-compose.example.yml docker-compose.yml
+#
+# Then run:
+#   docker compose up --build -d
+
+services:
+  omnilux:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    image: omnilux:latest
+    container_name: omnilux
+    restart: unless-stopped
+    ports:
+      - "4000:4000"          # Web UI + API
+      - "1900:1900/udp"      # DLNA/SSDP discovery
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      OMNILUX_LIBRARY_ROOT: /data
+      OMNILUX_DB_PATH: /app/data/omnilux.db
+      OMNILUX_DOWNLOAD_PATH: /app/data/downloads
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+    volumes:
+      # Persistent app data (SQLite DB, downloads, config)
+      - /path/to/omnilux/data:/app/data
+      # Shared media library root (your movies, tv, music, etc.)
+      - /path/to/media:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    # Container stdout/stderr logs stay on the host under Docker's json-file storage,
+    # typically /var/lib/docker/containers/<container-id>/<container-id>-json.log.
+    # Structured application logs are also written inside the bind mount at:
+    #   /path/to/omnilux/data/logs/
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+    ## GPU acceleration (optional) — uncomment for NVIDIA hardware transcoding
+    # runtime: nvidia
+    # environment:
+    #   NVIDIA_VISIBLE_DEVICES: all
+    #   NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
+    # devices:
+    #   - /dev/dri:/dev/dri
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu, video, compute]

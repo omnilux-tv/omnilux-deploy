@@ -1,0 +1,45 @@
+services:
+  omnilux:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    image: omnilux:latest
+    container_name: omnilux
+    restart: unless-stopped
+    ports:
+      - "${PORT:-4000}:4000"
+      - "1900:1900/udp"   # DLNA/SSDP discovery
+    volumes:
+      # Persistent database and config
+      - omnilux-data:/app/data
+      # Media library root — read-write needed for transcoding temp files
+      - ${LIBRARY_ROOT:-/mnt/media}:/data
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - OMNILUX_DB_PATH=/app/data/omnilux.db
+      - OMNILUX_LIBRARY_ROOT=/data
+      - TMDB_API_KEY=${TMDB_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 256M
+    networks:
+      - omnilux-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  omnilux-data:
+
+networks:
+  omnilux-net:
+    driver: bridge

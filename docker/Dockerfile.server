@@ -1,0 +1,105 @@
+# ---- Runtime base (cached — only changes when system deps change) ----
+FROM node:22-bookworm-slim AS base
+
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+
+# Install runtime packages. This layer is expensive (~Chromium, ffmpeg, ClamAV)
+# but cached as long as this block doesn't change.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      tini \
+      curl \
+      ffmpeg \
+      intel-media-va-driver \
+      vainfo \
+      ca-certificates \
+      pciutils \
+      p7zip-full && \
+    rm -rf /var/lib/apt/lists/*
+
+# ---- Builder stage ----
+FROM node:22-bookworm-slim AS builder
+
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+
+WORKDIR /build
+
+# Copy workspace config and package files for install
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/types/package.json packages/types/
+COPY packages/plugin-sdk/package.json packages/plugin-sdk/
+COPY apps/server/package.json apps/server/
+COPY apps/web/package.json apps/web/
+
+# Install all dependencies (cached when lockfile unchanged).
+# TrueNAS hosts have occasionally hit transient EAGAIN copyfile failures during
+# highly parallel pnpm installs, so keep install concurrency conservative.
+RUN pnpm install --frozen-lockfile --child-concurrency=1 --package-import-method=hardlink
+
+# Copy source code
+COPY packages/ packages/
+COPY apps/server/ apps/server/
+COPY apps/web/ apps/web/
+
+# Build: types → plugin-sdk → server → web
+RUN pnpm --filter @omnilux/types build && \
+    pnpm --filter @omnilux/plugin-sdk build && \
+    pnpm --filter @omnilux/server build && \
+    rm -rf apps/web/.output apps/web/dist && \
+    pnpm --filter @omnilux/web build
+
+# ---- Runtime stage ----
+FROM base AS runtime
+
+LABEL org.opencontainers.image.title="OmniLux" \
+      org.opencontainers.image.description="Unified media automation platform" \
+      org.opencontainers.image.version="0.1.0" \
+      org.opencontainers.image.source="https://github.com/omnilux/omnilux" \
+      org.opencontainers.image.licenses="MIT"
+
+WORKDIR /app
+
+# Copy workspace config and package files
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY packages/types/package.json packages/types/
+COPY packages/plugin-sdk/package.json packages/plugin-sdk/
+COPY apps/server/package.json apps/server/
+COPY apps/web/package.json apps/web/
+
+# Install production dependencies only (cached when lockfile unchanged).
+# Matching the lower concurrency here reduces transient filesystem pressure on
+# remote NAS builds.
+RUN pnpm install --prod --frozen-lockfile --child-concurrency=1 --package-import-method=hardlink && pnpm store prune
+
+# Copy built artifacts from builder
+COPY --from=builder --chmod=755 /build/packages/plugin-sdk/dist packages/plugin-sdk/dist/
+COPY --from=builder --chmod=755 /build/apps/server/dist apps/server/dist/
+COPY --from=builder --chmod=755 /build/apps/web/.output/public apps/web/.output/public/
+COPY --from=builder --chmod=755 /build/apps/web/.output/server apps/web/.output/server/
+
+# Copy database migrations and entrypoint
+COPY --chmod=755 apps/server/src/db/migrations apps/server/src/db/migrations/
+COPY --chmod=755 scripts/entrypoint.sh /app/entrypoint.sh
+
+# Create non-root user and writable data directories
+RUN groupadd --system omnilux && \
+    useradd --system --gid omnilux --shell /bin/sh omnilux && \
+    mkdir -p /app/data /app/plugins /data && \
+    chown omnilux:omnilux /app/data /app/plugins /data
+
+VOLUME ["/app/data", "/data"]
+
+ENV NODE_ENV=production \
+    PORT=4000 \
+    OMNILUX_DB_PATH=/app/data/omnilux.db \
+    OMNILUX_BROWSER_SOLVER=auto
+
+EXPOSE 4000 1900/udp
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:4000/api/health || exit 1
+
+USER omnilux
+
+ENTRYPOINT ["tini", "--"]
+CMD ["/app/entrypoint.sh"]

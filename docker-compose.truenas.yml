@@ -20,6 +20,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
+      OMNILUX_DISABLE_BACKGROUND_RUNTIME: "true"
       OMNILUX_LIBRARY_ROOT: /data
       OMNILUX_DB_PATH: /app/data/omnilux.db
       SUPABASE_URL: ${SUPABASE_URL:-https://shajwravamxdjvmfvilz.supabase.co}

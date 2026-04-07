@@ -24,10 +24,8 @@ What this repo owns:
 
 What is still transitional:
 
-- `docker/Dockerfile.server` still builds against the full OmniLux product checkout layout in CI, because the published server image is assembled from `omnilux/` plus `omnilux-deploy/` assets.
 - `scripts/deploy.sh` and `scripts/deploy.example.sh` now deploy published images and no longer require product source on the target host.
 - `scripts/install/install-linux.sh`, `scripts/install/install-macos.sh`, `scripts/install/install-windows.ps1`, and `scripts/install/setup.sh` still target a full product checkout for source builds and service startup.
-- Docker/image publishing CI now lives in `.github/workflows/docker-publish.yml`, but it still assembles a combined build context from sibling `omnilux/` source during CI.
 
 Explicitly not copied in this pass:
 
@@ -46,7 +44,7 @@ Runtime deploy assumptions:
 - `docker-compose.truenas.yml` now pulls `${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}` at deploy time.
 - `scripts/deploy.sh` and `scripts/deploy.example.sh` sync only deploy-owned assets and then pull the selected image tag on the target host.
 
-CI ownership:
+Image publishing ownership:
 
-- `.github/workflows/docker-publish.yml` owns the container publish flow for the extracted deploy repo.
-- That workflow publishes `ghcr.io/omnilux-tv/omnilux`, which is used both for the self-hosted server and for the relay service on the public edge.
+- `ghcr.io/omnilux-tv/omnilux` is published from `../omnilux/.github/workflows/docker-publish.yml`.
+- This repo remains deploy-only and should not own product image publishing.

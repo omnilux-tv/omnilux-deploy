@@ -1,9 +1,7 @@
 services:
   omnilux:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.server
-    image: omnilux:latest
+    image: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}
+    pull_policy: always
     container_name: omnilux
     restart: unless-stopped
     ports:

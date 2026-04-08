@@ -24,8 +24,8 @@ What this repo owns:
 
 What is still transitional:
 
-- `scripts/deploy.sh` and `scripts/deploy.example.sh` now deploy published images and no longer require product source on the target host.
-- `scripts/install/install-linux.sh`, `scripts/install/install-macos.sh`, `scripts/install/install-windows.ps1`, and `scripts/install/setup.sh` still target a full product checkout for source builds and service startup.
+- `scripts/deploy.sh`, `scripts/deploy.example.sh`, `scripts/install.sh`, `docker-compose.truenas.yml`, and the `docker/` compose bundle now deploy published images and no longer require product source on the target host.
+- `scripts/install/install-linux.sh`, `scripts/install/install-macos.sh`, `scripts/install/install-windows.ps1`, and `scripts/install/setup.sh` are explicitly retired source-build paths that point users back to the supported image-based flows.
 
 Explicitly not copied in this pass:
 
@@ -43,6 +43,7 @@ Runtime deploy assumptions:
 
 - `docker-compose.truenas.yml` now pulls `${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}` at deploy time.
 - `scripts/deploy.sh` and `scripts/deploy.example.sh` sync only deploy-owned assets and then pull the selected image tag on the target host.
+- `docker/docker-compose.yml` and `docker/docker-compose.example.yml` are local image-based examples, not source-build inputs.
 
 Image publishing ownership:
 

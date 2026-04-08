@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: OmniLux Workspace Roadmap
+    url: https://github.com/orgs/omnilux-tv/projects/1
+    about: Check the cross-repo roadmap board before opening a new planning issue.

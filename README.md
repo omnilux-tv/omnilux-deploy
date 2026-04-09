@@ -2,6 +2,12 @@
 
 Self-hosted deployment repo for OmniLux.
 
+This repo is also the official deployment contract for first-party managed OmniLux runtimes. The same image and compose-level env contract should be able to deploy:
+
+- normal customer self-hosted servers
+- the managed media runtime profile
+- the internal ops runtime profile
+
 This repo now contains the extracted canonical self-hosted deploy assets that previously lived in `../omnilux/`:
 
 - `docker/`
@@ -17,6 +23,7 @@ This repo now contains the extracted canonical self-hosted deploy assets that pr
 What this repo owns:
 
 - Dockerfiles and Compose bundles for self-hosted installs
+- the supported env/deploy contract for customer-compatible first-party installs
 - Host bootstrap and install scripts
 - TrueNAS deployment flow
 - Kubernetes deploy assets
@@ -43,6 +50,11 @@ Runtime deploy assumptions:
 
 - `docker-compose.truenas.yml` now pulls `${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}` at deploy time.
 - self-hosted cloud-linked traffic should target the branded public control-plane endpoint `https://api.omnilux.tv` instead of a raw `*.supabase.co` URL.
+- deployment profiles are opt-in:
+  - `OMNILUX_DEPLOYMENT_PROFILE=self-hosted` for normal customer installs
+  - `OMNILUX_DEPLOYMENT_PROFILE=managed-media` for `media.omnilux.tv`
+  - `OMNILUX_DEPLOYMENT_PROFILE=ops` for `ops.omnilux.tv`
+- `OMNILUX_PUBLIC_ORIGIN`, `OMNILUX_CLOUD_APP_URL`, and `OMNILUX_ALLOWED_ORIGINS` let the same runtime image declare the correct public hostname and browser origins for first-party managed installs.
 - `scripts/deploy.sh` and `scripts/deploy.example.sh` sync only deploy-owned assets and then pull the selected image tag on the target host.
 - `docker/docker-compose.yml` and `docker/docker-compose.example.yml` are local image-based examples, not source-build inputs.
 

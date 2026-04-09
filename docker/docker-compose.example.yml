@@ -23,6 +23,11 @@ services:
       # Optional cloud-linked features: claim flow, invites, billing-linked validation, relay
       # SUPABASE_URL: https://api.omnilux.tv
       # SUPABASE_ANON_KEY: your-public-anon-key
+      # Optional runtime profile wiring. Leave unset for normal customer/self-hosted installs.
+      # OMNILUX_DEPLOYMENT_PROFILE: self-hosted
+      # OMNILUX_PUBLIC_ORIGIN: https://media.omnilux.tv
+      # OMNILUX_CLOUD_APP_URL: https://app.omnilux.tv
+      # OMNILUX_ALLOWED_ORIGINS: https://app.omnilux.tv,https://media.omnilux.tv
       TMDB_API_KEY: ${TMDB_API_KEY:-}
     volumes:
       # Persistent app data (SQLite DB, downloads, config)

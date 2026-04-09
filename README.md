@@ -57,6 +57,9 @@ Runtime deploy assumptions:
 - `OMNILUX_PUBLIC_ORIGIN`, `OMNILUX_CLOUD_APP_URL`, and `OMNILUX_ALLOWED_ORIGINS` let the same runtime image declare the correct public hostname and browser origins for first-party managed installs.
 - `scripts/deploy.sh` and `scripts/deploy.example.sh` sync only deploy-owned assets and then pull the selected image tag on the target host.
 - `docker/docker-compose.yml` and `docker/docker-compose.example.yml` are local image-based examples, not source-build inputs.
+- `deploy/first-party/docker-compose.runtime.yml` is the dedicated-host compose contract for first-party `managed-media` and `ops` runtimes.
+- `deploy/first-party/managed-media.env.example` and `deploy/first-party/ops.env.example` are the official profile-specific env templates for first-party installs.
+- `docs/first-party-runtime-profiles.md` describes when to use edge-hosted profiles versus dedicated runtime hosts.
 
 Image publishing ownership:
 

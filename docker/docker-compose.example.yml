@@ -20,6 +20,9 @@ services:
       OMNILUX_LIBRARY_ROOT: /data
       OMNILUX_DB_PATH: /app/data/omnilux.db
       OMNILUX_DOWNLOAD_PATH: /app/data/downloads
+      # Optional cloud-linked features: claim flow, invites, billing-linked validation, relay
+      # SUPABASE_URL: https://api.omnilux.tv
+      # SUPABASE_ANON_KEY: your-public-anon-key
       TMDB_API_KEY: ${TMDB_API_KEY:-}
     volumes:
       # Persistent app data (SQLite DB, downloads, config)

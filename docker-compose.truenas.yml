@@ -23,7 +23,7 @@ services:
       OMNILUX_DISABLE_BACKGROUND_RUNTIME: "true"
       OMNILUX_LIBRARY_ROOT: /data
       OMNILUX_DB_PATH: /app/data/omnilux.db
-      SUPABASE_URL: ${SUPABASE_URL:-https://shajwravamxdjvmfvilz.supabase.co}
+      SUPABASE_URL: ${SUPABASE_URL:-https://api.omnilux.tv}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoYWp3cmF2YW14ZGp2bWZ2aWx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzc5MzgsImV4cCI6MjA5MDg1MzkzOH0.UCjcxCjhfRBySGe1y-v7V9VQCrDX-EFp-XvR0aCEDlU}
       TMDB_API_KEY: ${TMDB_API_KEY:-}
       NVIDIA_VISIBLE_DEVICES: all

@@ -19,6 +19,10 @@ Every first-party runtime should set:
 - `SUPABASE_ANON_KEY`
 - `OMNILUX_ALLOWED_ORIGINS`
 
+Managed media runtimes also need the registration secret that the runtime uses to self-register with Cloud:
+
+- `MANAGED_RUNTIME_REGISTRATION_SECRET`
+
 Profile-specific examples live in:
 
 - `deploy/first-party/managed-media.env.example`

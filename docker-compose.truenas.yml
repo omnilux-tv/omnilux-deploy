@@ -23,6 +23,7 @@ services:
       OMNILUX_DISABLE_BACKGROUND_RUNTIME: "true"
       OMNILUX_LIBRARY_ROOT: /data
       OMNILUX_DB_PATH: /app/data/omnilux.db
+      OMNILUX_PLUGINS_DIR: /app/plugins
       SUPABASE_URL: ${SUPABASE_URL:-https://api.omnilux.tv}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoYWp3cmF2YW14ZGp2bWZ2aWx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzc5MzgsImV4cCI6MjA5MDg1MzkzOH0.UCjcxCjhfRBySGe1y-v7V9VQCrDX-EFp-XvR0aCEDlU}
       OMNILUX_DEPLOYMENT_PROFILE: ${OMNILUX_DEPLOYMENT_PROFILE:-self-hosted}
@@ -34,6 +35,7 @@ services:
       NVIDIA_DRIVER_CAPABILITIES: compute,video,utility
     volumes:
       - ${OMNILUX_STORAGE_ROOT:-/mnt/Storage/Applications/OmniLux}/data:/app/data
+      - ${OMNILUX_STORAGE_ROOT:-/mnt/Storage/Applications/OmniLux}/plugins:/app/plugins
       - ${OMNILUX_MEDIA_ROOT:-/mnt/Storage/data/data/media}:/data
     devices:
       - /dev/dri:/dev/dri

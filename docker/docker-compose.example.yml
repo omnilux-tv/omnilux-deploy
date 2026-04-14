@@ -19,6 +19,7 @@ services:
       PORT: 4000
       OMNILUX_LIBRARY_ROOT: /data
       OMNILUX_DB_PATH: /app/data/omnilux.db
+      OMNILUX_PLUGINS_DIR: /app/plugins
       OMNILUX_DOWNLOAD_PATH: /app/data/downloads
       # Optional cloud-linked features: claim flow, invites, billing-linked validation, relay
       # SUPABASE_URL: https://api.omnilux.tv
@@ -32,6 +33,8 @@ services:
     volumes:
       # Persistent app data (SQLite DB, downloads, config)
       - /path/to/omnilux/data:/app/data
+      # Persistent plugin store (installed plugins and their shipped assets)
+      - /path/to/omnilux/plugins:/app/plugins
       # Shared media library root (your movies, tv, music, etc.)
       - /path/to/media:/data
     logging:

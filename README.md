@@ -4,6 +4,14 @@ Self-hosted deployment repo for OmniLux.
 
 This repo is the official deployment contract for the self-hosted OmniLux runtime.
 
+## Canonical Contracts
+
+- Deployment contract: `../omnilux/docs/planning/cross-repo-plans/deployment-contract-plan.md`
+- Runtime architecture: `../omnilux/docs/ARCHITECTURE.md`
+- Workspace plane map: `../ARCHITECTURE.md`
+
+Deploy docs should own reusable self-hosted install, upgrade, rollback, env, volume, and health-check behavior. Runtime behavior belongs in `../omnilux/`; public ingress belongs in `../omnilux-edge/`.
+
 Canonical note:
 
 - `omnilux/` is the self-hosted runtime product that uses this repo

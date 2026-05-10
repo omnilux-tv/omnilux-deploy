@@ -2,11 +2,19 @@
 
 Self-hosted deployment repo for OmniLux.
 
+## Workspace
+
+This repository is part of the official OmniLux multi-repo workspace. Use the root `omnilux-workspace` repo for onboarding, profiles, and cross-repo contracts:
+
+- Onboarding: `../ONBOARDING.md`
+- Manifest: `../workspace.repositories.json`
+- Contracts: `../contracts/`
+
 This repo is the official deployment contract for the self-hosted OmniLux runtime.
 
 ## Canonical Contracts
 
-- Deployment contract: `../omnilux/docs/planning/cross-repo-plans/deployment-contract-plan.md`
+- Deployment contract: `../contracts/deployment-contract-plan.md`
 - Runtime architecture: `../omnilux/docs/ARCHITECTURE.md`
 - Workspace plane map: `../ARCHITECTURE.md`
 

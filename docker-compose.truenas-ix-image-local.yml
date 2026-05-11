@@ -1,0 +1,5 @@
+# Merge last: force omnilux to use a locally built image (see deploy.sh --local-build).
+services:
+  omnilux:
+    image: omnilux-truenas-local:latest
+    pull_policy: never

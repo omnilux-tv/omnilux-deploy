@@ -1,0 +1,21 @@
+# Optional merge file for iterative TrueNAS testing without GHCR.
+#
+#   docker compose -f docker-compose.truenas.yml -f docker-compose.truenas.local-build.yml \
+#     up -d --build omnilux omnilux-updater
+#
+# Requires ./omnilux-src (synced omnilux repo root, including omnilux-packages submodule)
+# next to this compose file. See omnilux-deploy/scripts/deploy.sh --local-build.
+
+services:
+  omnilux:
+    image: omnilux-truenas-local:latest
+    pull_policy: never
+    build:
+      context: ./omnilux-src
+      dockerfile: .github/docker/Dockerfile.server
+    environment:
+      OMNILUX_IMAGE: omnilux-truenas-local:latest
+
+  omnilux-updater:
+    environment:
+      OMNILUX_IMAGE: omnilux-truenas-local:latest

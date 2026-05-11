@@ -13,6 +13,7 @@ REMOTE="truenas"
 REMOTE_REPO="${REMOTE_REPO_PATH:-/mnt/Storage/Applications/OmniLux/repo}"
 COMPOSE_FILE="${OMNILUX_COMPOSE_FILE:-docker-compose.truenas.yml}"
 OMNILUX_IMAGE="${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}"
+REMOTE_DOCKER="${REMOTE_DOCKER:-sudo -n docker}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -37,18 +38,18 @@ echo "==> Sync complete."
 
 if [ "$SKIP_PULL" = false ]; then
   echo "==> Pulling image ${OMNILUX_IMAGE}..."
-  ssh "${REMOTE}" "cd ${REMOTE_REPO} && OMNILUX_IMAGE='${OMNILUX_IMAGE}' docker compose -f ${COMPOSE_FILE} pull omnilux"
+  ssh "${REMOTE}" "cd ${REMOTE_REPO} && OMNILUX_IMAGE='${OMNILUX_IMAGE}' ${REMOTE_DOCKER} compose -f ${COMPOSE_FILE} pull omnilux"
 fi
 
 echo "==> Recreating OmniLux server..."
-ssh "${REMOTE}" "cd ${REMOTE_REPO} && OMNILUX_IMAGE='${OMNILUX_IMAGE}' docker compose -f ${COMPOSE_FILE} up -d --force-recreate omnilux"
+ssh "${REMOTE}" "cd ${REMOTE_REPO} && OMNILUX_IMAGE='${OMNILUX_IMAGE}' ${REMOTE_DOCKER} compose -f ${COMPOSE_FILE} up -d --build --force-recreate omnilux omnilux-updater"
 
 echo "==> Waiting for omnilux to be healthy..."
 for i in $(seq 1 40); do
-  HEALTH=$(ssh "${REMOTE}" "docker inspect --format='{{.State.Health.Status}}' omnilux 2>/dev/null" || echo "missing")
+  HEALTH=$(ssh "${REMOTE}" "${REMOTE_DOCKER} inspect --format='{{.State.Health.Status}}' omnilux 2>/dev/null" || echo "missing")
   if [ "$HEALTH" = "healthy" ]; then
     echo "==> Deployed successfully! omnilux is healthy."
-    ssh "${REMOTE}" "docker logs omnilux --tail 5" 2>/dev/null || true
+    ssh "${REMOTE}" "${REMOTE_DOCKER} logs omnilux --tail 5" 2>/dev/null || true
     exit 0
   fi
   echo "    Health: ${HEALTH} (attempt ${i}/40)"
@@ -57,5 +58,5 @@ done
 
 echo "==> WARNING: omnilux did not become healthy within 120s."
 echo "==> Last logs:"
-ssh "${REMOTE}" "docker logs omnilux --tail 20" 2>/dev/null || true
+ssh "${REMOTE}" "${REMOTE_DOCKER} logs omnilux --tail 20" 2>/dev/null || true
 exit 1

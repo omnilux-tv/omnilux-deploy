@@ -27,6 +27,8 @@ Canonical note:
 - `ops.omnilux.tv` is owned by `omnilux-ops`
 - this repo no longer owns first-party managed runtime or ops deploy contracts
 
+Self-hosted setup (universal): [`docs/self-hosted-setup.md`](docs/self-hosted-setup.md). Optional compose env template: [`env/example.env`](env/example.env).
+
 This repo contains the canonical self-hosted deploy assets that previously lived in `../omnilux/`:
 
 - `docker/`
@@ -81,3 +83,5 @@ Image publishing ownership:
 
 - `ghcr.io/omnilux-tv/omnilux` is published from `../omnilux/.github/workflows/docker-publish.yml`.
 - This repo remains deploy-only and should not own product image publishing.
+
+Pulling that image on any host requires registry access GitHub allows for the package: either the package is **public** (anonymous `docker pull` works) or the host runs **`docker login ghcr.io`** with credentials that have **`read:packages`**. Personal host paths, TrueNAS app fields, and machine-specific compose overrides belong outside this repo (for example a private `omnilux-infra` checkout), not in `omnilux-deploy`.

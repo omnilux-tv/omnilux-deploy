@@ -20,13 +20,17 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      OMNILUX_DISABLE_BACKGROUND_RUNTIME: "true"
+      OMNILUX_DISABLE_BACKGROUND_RUNTIME: ${OMNILUX_DISABLE_BACKGROUND_RUNTIME:-false}
       OMNILUX_LIBRARY_ROOT: /data
       OMNILUX_DB_PATH: /app/data/omnilux.db
       OMNILUX_PLUGINS_DIR: /app/plugins
+      OMNILUX_IMAGE: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}
+      OMNILUX_UPDATER_URL: ${OMNILUX_UPDATER_URL:-http://omnilux-updater:4050}
+      OMNILUX_UPDATER_TOKEN: ${OMNILUX_UPDATER_TOKEN:-}
       SUPABASE_URL: ${SUPABASE_URL:-https://api.omnilux.tv}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoYWp3cmF2YW14ZGp2bWZ2aWx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNzc5MzgsImV4cCI6MjA5MDg1MzkzOH0.UCjcxCjhfRBySGe1y-v7V9VQCrDX-EFp-XvR0aCEDlU}
       OMNILUX_DEPLOYMENT_PROFILE: ${OMNILUX_DEPLOYMENT_PROFILE:-self-hosted}
+      OMNILUX_PRIMARY_DEPLOYMENT: ${OMNILUX_PRIMARY_DEPLOYMENT:-truenas-custom-app}
       OMNILUX_PUBLIC_ORIGIN: ${OMNILUX_PUBLIC_ORIGIN:-}
       OMNILUX_CLOUD_APP_URL: ${OMNILUX_CLOUD_APP_URL:-https://app.omnilux.tv}
       OMNILUX_ALLOWED_ORIGINS: ${OMNILUX_ALLOWED_ORIGINS:-}
@@ -55,7 +59,31 @@ services:
       start_period: 10s
       retries: 3
 
+  # ---------------------------------------------------------------------------
+  # Local update controller — private Docker socket helper for in-app updates
+  # ---------------------------------------------------------------------------
+  omnilux-updater:
+    build:
+      context: ./updater
+    container_name: omnilux-updater
+    restart: unless-stopped
+    environment:
+      PORT: 4050
+      OMNILUX_REPO_DIR: /repo
+      OMNILUX_COMPOSE_FILE: docker-compose.truenas.yml
+      OMNILUX_IMAGE: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}
+      OMNILUX_UPDATER_TOKEN: ${OMNILUX_UPDATER_TOKEN:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${OMNILUX_STORAGE_ROOT:-/mnt/Storage/Applications/OmniLux}/repo:/repo
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4050/status"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
 networks:
   default:
     external: true
-    name: omnilux_default
+    name: ${OMNILUX_DOCKER_NETWORK:-ix-omnilux_default}

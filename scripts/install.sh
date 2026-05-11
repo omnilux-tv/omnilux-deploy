@@ -120,7 +120,9 @@ EOF
 
 start_container() {
   info "Pulling latest image..."
-  $SUDO docker compose -f "$INSTALL_DIR/docker-compose.yml" --env-file "$INSTALL_DIR/.env" pull
+  if ! $SUDO docker compose -f "$INSTALL_DIR/docker-compose.yml" --env-file "$INSTALL_DIR/.env" pull; then
+    die "Image pull failed (often 'unauthorized' for ghcr.io). Run: echo TOKEN | docker login ghcr.io -u GITHUB_USER --password-stdin (PAT needs read:packages), or use a public ghcr.io/omnilux-tv/omnilux package. Doc: https://github.com/omnilux-tv/omnilux-deploy/blob/main/docs/self-hosted-setup.md"
+  fi
 
   info "Starting OmniLux..."
   $SUDO docker compose -f "$INSTALL_DIR/docker-compose.yml" --env-file "$INSTALL_DIR/.env" up -d

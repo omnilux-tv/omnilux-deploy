@@ -51,6 +51,28 @@ docker compose -f docker-compose.truenas.yml up -d omnilux omnilux-updater
 
 Pin **`OMNILUX_IMAGE`** to a specific tag or digest if you want upgrades to be explicit instead of following `latest`.
 
+### TrueNAS Scale Custom App (`ix-apps` rendered compose)
+
+If the running **`omnilux`** container was created by **Apps → Custom App** (not from a manual checkout of this repo), `docker compose` must use the **rendered** project file and project name from container labels — otherwise you get a **name conflict** (`/omnilux` already in use) when you run compose from `/repo` alone.
+
+Discover labels (on the NAS):
+
+```bash
+sudo docker inspect omnilux --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}'
+sudo docker inspect omnilux --format '{{index .Config.Labels "com.docker.compose.project"}}'
+```
+
+Then pull and recreate only the app service (example — replace paths with your `inspect` output):
+
+```bash
+COMPOSE_FILE="/mnt/.ix-apps/app_configs/omnilux/versions/1.0.0/templates/rendered/docker-compose.yaml"
+COMPOSE_PROJECT="ix-omnilux"
+sudo docker pull "${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}"
+sudo docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d omnilux --force-recreate
+```
+
+A small wrapper that automates this (including syncing `ghcr.io` credentials for `sudo docker`) lives in a **personal** infra repo as `scripts/truenas-refresh-omnilux.sh` in the OmniLux workspace notes; the commands above are the same idea without that script.
+
 ## 6. Related scripts
 
 - `scripts/deploy.sh` — rsync this deploy repo to a remote host and pull/recreate (adjust `REMOTE`, `REMOTE_REPO_PATH`, `OMNILUX_IMAGE` in the environment as needed).

@@ -147,10 +147,11 @@ fi
 
 if [ "$SKIP_PULL" = false ] && [ "$LOCAL_BUILD" = false ]; then
   echo "==> Pulling image ${OMNILUX_IMAGE}..."
+  ssh_q "${REMOTE_DOCKER} pull '${OMNILUX_IMAGE}'"
   if [[ -n "${IX_COMPOSE_FILE}" ]]; then
-    ssh_q "cd '${REMOTE_REPO}' && OMNILUX_IMAGE='${OMNILUX_IMAGE}' ${REMOTE_DOCKER} compose $(compose_ix_only) pull omnilux"
+    ssh_q "cd '${REMOTE_REPO}' && OMNILUX_IMAGE='${OMNILUX_IMAGE}' ${REMOTE_DOCKER} compose $(compose_ix_only) pull omnilux || true"
   else
-    ssh_q "cd '${REMOTE_REPO}' && OMNILUX_IMAGE='${OMNILUX_IMAGE}' ${REMOTE_DOCKER} compose $(compose_base) pull omnilux"
+    ssh_q "cd '${REMOTE_REPO}' && OMNILUX_IMAGE='${OMNILUX_IMAGE}' ${REMOTE_DOCKER} compose $(compose_base) pull omnilux || true"
   fi
 fi
 
@@ -176,6 +177,8 @@ for i in $(seq 1 40); do
   HEALTH=$(ssh_q "${REMOTE_DOCKER} inspect --format='{{.State.Health.Status}}' omnilux 2>/dev/null" || echo "missing")
   if [ "$HEALTH" = "healthy" ]; then
     echo "==> Deployed successfully! omnilux is healthy."
+    echo "==> Deployed image:"
+    ssh_q "${REMOTE_DOCKER} inspect --format='image={{.Config.Image}} id={{.Image}} revision={{index .Config.Labels \"org.opencontainers.image.revision\"}} created={{index .Config.Labels \"org.opencontainers.image.created\"}}' omnilux" 2>/dev/null || true
     ssh_q "${REMOTE_DOCKER} logs omnilux --tail 5" 2>/dev/null || true
     exit 0
   fi

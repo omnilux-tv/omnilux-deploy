@@ -21,14 +21,15 @@ services:
       OMNILUX_DB_PATH: /app/data/omnilux.db
       OMNILUX_PLUGINS_DIR: /app/plugins
       OMNILUX_DOWNLOAD_PATH: /app/data/downloads
-      # Optional cloud-linked features: claim flow, invites, billing-linked validation, relay
+      # Optional OmniLux Cloud features. Claim/link a server from the app before expecting cloud metadata.
       # SUPABASE_URL: https://api.omnilux.tv
-      # SUPABASE_ANON_KEY: your-public-anon-key
+      # SUPABASE_ANON_KEY: ""
+      # OMNILUX_CLOUD_METADATA_BROKER_TOKEN: ""
       # Optional runtime profile wiring. Leave unset for normal customer/self-hosted installs.
       # OMNILUX_DEPLOYMENT_PROFILE: self-hosted
-      # OMNILUX_PUBLIC_ORIGIN: https://media.omnilux.tv
+      # OMNILUX_PUBLIC_ORIGIN: https://your-omnilux-domain.example
       # OMNILUX_CLOUD_APP_URL: https://app.omnilux.tv
-      # OMNILUX_ALLOWED_ORIGINS: https://app.omnilux.tv,https://media.omnilux.tv
+      # OMNILUX_ALLOWED_ORIGINS: https://your-omnilux-domain.example
       TMDB_API_KEY: ${TMDB_API_KEY:-}
     volumes:
       # Persistent app data (SQLite DB, downloads, config)

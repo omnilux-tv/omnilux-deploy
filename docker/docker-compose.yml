@@ -21,6 +21,10 @@ services:
       - OMNILUX_PLUGINS_DIR=/app/plugins
       - OMNILUX_LIBRARY_ROOT=/data
       - TMDB_API_KEY=${TMDB_API_KEY:-}
+      # Optional OmniLux Cloud metadata/link features. Leave blank for local-only/offline installs.
+      - SUPABASE_URL=${SUPABASE_URL:-https://api.omnilux.tv}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
+      - OMNILUX_CLOUD_METADATA_BROKER_TOKEN=${OMNILUX_CLOUD_METADATA_BROKER_TOKEN:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     deploy:
       resources:

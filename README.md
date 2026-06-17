@@ -31,6 +31,7 @@ Self-hosted setup:
 
 - Universal Docker/image path: [`docs/self-hosted-setup.md`](docs/self-hosted-setup.md)
 - Bare-metal Linux native service path: [`docs/bare-metal-linux.md`](docs/bare-metal-linux.md)
+- Bare-metal macOS user service path: [`docs/bare-metal-macos.md`](docs/bare-metal-macos.md)
 - Optional compose env template: [`env/example.env`](env/example.env)
 
 This repo contains the canonical self-hosted deploy assets that previously lived in `../omnilux/`:
@@ -58,7 +59,8 @@ Current deployment notes:
 
 - `scripts/deploy.sh`, `scripts/deploy.example.sh`, `scripts/install.sh`, `docker-compose.truenas.yml`, and the `docker/` compose bundle deploy published images and do not require product source on the target host.
 - `scripts/install/install-linux.sh` is the supported bare-metal Linux path. It extracts the published runtime image from GHCR and installs it as a native `systemd` service without Docker or source repository access.
-- `scripts/install/install-macos.sh`, `scripts/install/install-windows.ps1`, and `scripts/install/setup.sh` are retired source-build paths that point users back to the supported image-based flows.
+- `scripts/install/install-macos.sh` is the supported bare-metal macOS path. It installs a Darwin-built runtime tarball as a user-level `launchd` service without Docker or source repository access.
+- `scripts/install/install-windows.ps1` and `scripts/install/setup.sh` are retired source-build paths that point users back to the supported image-based flows.
 
 Explicitly not copied in this pass:
 
@@ -80,6 +82,7 @@ Runtime deploy assumptions:
 - `scripts/deploy.sh` and `scripts/deploy.example.sh` sync only deploy-owned assets and then pull the selected image tag on the target host.
 - `docker/docker-compose.yml` and `docker/docker-compose.example.yml` are local image-based examples, not source-build inputs.
 - `scripts/install/install-linux.sh` is image-based but not Docker-based: it downloads the public image layers through the OCI registry API, extracts `/app`, and runs the built runtime with host Node.js under `systemd`.
+- `scripts/install/install-macos.sh` is artifact-based and not Docker-based: it downloads a public Darwin tarball such as `omnilux-darwin-arm64.tar.gz`, installs it under the current user's `~/Library/Application Support/OmniLux`, and runs it with `launchd`.
 - installed plugins must persist across recreates, so the deploy contract now binds `/app/plugins` and sets `OMNILUX_PLUGINS_DIR=/app/plugins`
 - first-party managed runtime deploy contracts now live in `../omnilux-media/`
 - first-party operator-console image publishing and deploy ownership now live in `../omnilux-ops/`

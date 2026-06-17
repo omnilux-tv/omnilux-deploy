@@ -136,6 +136,50 @@ sudo ./scripts/install/install-linux.sh check
 
 The installer stores runtime metadata in `/etc/omnilux/install.json` and moves the previous runtime tree to `/opt/omnilux.previous` during replacement.
 
+## Fresh host test checklist
+
+Use a separate Ubuntu/Debian test host. Do not run this installer on a Mac or on an OmniLux production server.
+
+Recommended disposable host shape:
+
+- Ubuntu 24.04 or Ubuntu 22.04
+- 2 vCPU
+- 4 GB RAM minimum
+- 30 GB free disk
+- outbound access to `raw.githubusercontent.com`, `ghcr.io`, and `deb.nodesource.com`
+
+Run:
+
+```bash
+ssh ubuntu@TEST_HOST
+
+curl -fsSL https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/install/install-linux.sh \
+  | sudo bash
+
+systemctl status omnilux --no-pager
+curl -fsS http://127.0.0.1:4000/api/health
+journalctl -u omnilux -n 100 --no-pager
+cat /etc/omnilux/install.json
+```
+
+If you want to test without starting the service:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/install/install-linux.sh \
+  | sudo OMNILUX_START_SERVICE=0 bash
+```
+
+Clean up the disposable host after testing:
+
+```bash
+sudo systemctl disable --now omnilux || true
+sudo rm -f /etc/systemd/system/omnilux.service
+sudo systemctl daemon-reload
+sudo rm -rf /opt/omnilux /opt/omnilux.previous /etc/omnilux /var/lib/omnilux /srv/media
+sudo userdel omnilux 2>/dev/null || true
+sudo groupdel omnilux 2>/dev/null || true
+```
+
 ## Backup and rollback
 
 Before upgrades:

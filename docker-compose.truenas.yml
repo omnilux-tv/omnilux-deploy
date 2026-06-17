@@ -3,7 +3,7 @@ services:
   # Main application — self-hosted OmniLux server
   # ---------------------------------------------------------------------------
   omnilux:
-    image: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:sha-43b3b5f}
+    image: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}
     container_name: omnilux
     restart: unless-stopped
     pull_policy: always
@@ -24,7 +24,7 @@ services:
       OMNILUX_LIBRARY_ROOT: /data
       OMNILUX_DB_PATH: /app/data/omnilux.db
       OMNILUX_PLUGINS_DIR: /app/plugins
-      OMNILUX_IMAGE: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:sha-43b3b5f}
+      OMNILUX_IMAGE: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}
       OMNILUX_UPDATER_URL: ${OMNILUX_UPDATER_URL:-http://omnilux-updater:4050}
       OMNILUX_UPDATER_TOKEN: ${OMNILUX_UPDATER_TOKEN:-}
       SUPABASE_URL: ${SUPABASE_URL:-https://api.omnilux.tv}
@@ -72,7 +72,7 @@ services:
       PORT: 4050
       OMNILUX_REPO_DIR: /repo
       OMNILUX_COMPOSE_FILE: docker-compose.truenas.yml
-      OMNILUX_IMAGE: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:sha-43b3b5f}
+      OMNILUX_IMAGE: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}
       OMNILUX_UPDATER_TOKEN: ${OMNILUX_UPDATER_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

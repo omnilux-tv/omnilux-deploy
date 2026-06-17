@@ -333,10 +333,98 @@ process.stdout.write(config.config?.Labels?.['org.opencontainers.image.revision'
 NODE
 }
 
+list_layer_entries() {
+  local layer_file="$1"
+  local media_type="$2"
+
+  case "${media_type}" in
+    *zstd*)
+      tar --zstd -tf "${layer_file}"
+      ;;
+    *gzip*|*tar+gzip*)
+      tar -tzf "${layer_file}"
+      ;;
+    *)
+      tar -tf "${layer_file}"
+      ;;
+  esac
+}
+
+normalize_layer_path() {
+  local entry="$1"
+  entry="${entry#./}"
+  entry="${entry%/}"
+
+  if [[ -z "${entry}" || "${entry}" == "." ]]; then
+    printf ''
+    return 0
+  fi
+
+  case "${entry}" in
+    /*|../*|*/../*|*/..)
+      return 1
+      ;;
+  esac
+
+  printf '%s' "${entry}"
+}
+
+apply_layer_whiteouts() {
+  local entries_file="$1"
+  local rootfs_dir="$2"
+
+  while IFS= read -r raw_entry; do
+    local entry dir base target target_dir
+    entry="$(normalize_layer_path "${raw_entry}")" || die "Unsafe path in image layer: ${raw_entry}"
+    [[ -n "${entry}" ]] || continue
+    base="$(basename "${entry}")"
+    [[ "${base}" == .wh.* ]] || continue
+
+    dir="$(dirname "${entry}")"
+    [[ "${dir}" == "." ]] && dir=""
+
+    if [[ "${base}" == ".wh..wh..opq" ]]; then
+      target_dir="${rootfs_dir}/${dir}"
+      if [[ -d "${target_dir}" ]]; then
+        find "${target_dir}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+      fi
+      continue
+    fi
+
+    target="${rootfs_dir}/${dir}/${base#.wh.}"
+    rm -rf "${target}"
+  done < "${entries_file}"
+}
+
+prepare_known_symlink_conflicts() {
+  local rootfs_dir="$1"
+  local conflict
+
+  for conflict in \
+    app/apps/server/node_modules/@omnilux/api-contracts \
+    app/apps/server/node_modules/@omnilux/plugin-sdk \
+    app/apps/server/node_modules/@omnilux/types \
+    app/apps/server/node_modules/@shared/playback \
+    app/node_modules/@omnilux/api-contracts \
+    app/node_modules/@omnilux/plugin-sdk \
+    app/node_modules/@omnilux/types \
+    app/node_modules/@shared/playback; do
+    if [[ -L "${rootfs_dir}/${conflict}" ]]; then
+      rm -f "${rootfs_dir}/${conflict}"
+    fi
+  done
+}
+
 extract_layer() {
   local layer_file="$1"
   local media_type="$2"
   local rootfs_dir="$3"
+  local entries_file
+
+  entries_file="$(mktemp)"
+  list_layer_entries "${layer_file}" "${media_type}" | grep -E '(^|/)\.wh\.' > "${entries_file}" || true
+  apply_layer_whiteouts "${entries_file}" "${rootfs_dir}"
+  prepare_known_symlink_conflicts "${rootfs_dir}"
 
   case "${media_type}" in
     *zstd*)
@@ -349,20 +437,23 @@ extract_layer() {
       tar -xf "${layer_file}" -C "${rootfs_dir}"
       ;;
   esac
+
+  remove_layer_whiteout_markers "${entries_file}" "${rootfs_dir}"
+  rm -f "${entries_file}"
 }
 
-apply_whiteouts() {
-  local rootfs_dir="$1"
+remove_layer_whiteout_markers() {
+  local entries_file="$1"
+  local rootfs_dir="$2"
 
-  while IFS= read -r -d '' marker; do
-    local dir base target
-    dir="$(dirname "${marker}")"
-    base="$(basename "${marker}")"
-    target="${dir}/${base#.wh.}"
-    rm -rf "${target}" "${marker}"
-  done < <(find "${rootfs_dir}" -name '.wh.*' ! -name '.wh..wh..opq' -print0)
-
-  find "${rootfs_dir}" -name '.wh..wh..opq' -delete
+  while IFS= read -r raw_entry; do
+    local entry base
+    entry="$(normalize_layer_path "${raw_entry}")" || die "Unsafe path in image layer: ${raw_entry}"
+    [[ -n "${entry}" ]] || continue
+    base="$(basename "${entry}")"
+    [[ "${base}" == .wh.* ]] || continue
+    rm -rf "${rootfs_dir}/${entry}"
+  done < "${entries_file}"
 }
 
 entrypoint_relative_path() {
@@ -439,12 +530,13 @@ download_runtime_image() {
   tmp_dir="$(mktemp -d)"
   rootfs_dir="${tmp_dir}/rootfs"
   layers_dir="${tmp_dir}/layers"
+  _OMNILUX_INSTALL_TMP_DIR="${tmp_dir}"
   mkdir -p "${rootfs_dir}" "${layers_dir}"
 
   cleanup_tmp() {
-    rm -rf "${tmp_dir}"
+    rm -rf "${_OMNILUX_INSTALL_TMP_DIR:-}"
   }
-  trap cleanup_tmp RETURN
+  trap cleanup_tmp EXIT
 
   local token index_manifest selected_digest manifest_file revision
   token="$(registry_token "${registry}" "${repository}")" || die "Could not get registry token for ${registry}/${repository}."
@@ -467,12 +559,11 @@ download_runtime_image() {
     local safe_digest layer_file
     safe_digest="${digest//[:\/]/_}"
     layer_file="${layers_dir}/${safe_digest}.tar"
-    curl -fL \
+    curl -fsSL \
       -H "Authorization: Bearer ${token}" \
       "https://${registry}/v2/${repository}/blobs/${digest}" \
       -o "${layer_file}"
     extract_layer "${layer_file}" "${media_type}" "${rootfs_dir}"
-    apply_whiteouts "${rootfs_dir}"
     rm -f "${layer_file}"
   done < <(list_layer_specs "${manifest_file}")
 
@@ -521,6 +612,9 @@ EOF
   chmod 0640 "${INSTALL_METADATA_FILE}"
 
   ok "Installed runtime from ${OMNILUX_IMAGE}${revision:+ (${revision:0:12})}"
+  cleanup_tmp
+  unset _OMNILUX_INSTALL_TMP_DIR
+  trap - EXIT
 }
 
 env_line_exists() {

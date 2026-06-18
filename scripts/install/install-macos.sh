@@ -94,7 +94,7 @@ detect_arch() {
 
 default_artifact_url() {
   local arch="$1"
-  printf 'https://github.com/omnilux-tv/omnilux-deploy/releases/latest/download/omnilux-darwin-%s.tar.gz' "${arch}"
+  printf 'https://omnilux.tv/self-hosted/macos/omnilux-darwin-%s.tar.gz' "${arch}"
 }
 
 node_major() {

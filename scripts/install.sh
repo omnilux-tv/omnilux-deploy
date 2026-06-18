@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # OmniLux Installer
-# curl -fsSL https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/install.sh | bash
+# curl -fsSL https://omnilux.tv/self-hosted/install.sh | bash
 
 INSTALL_DIR="$HOME/.omnilux"
 IMAGE="ghcr.io/omnilux-tv/omnilux:latest"

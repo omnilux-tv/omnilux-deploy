@@ -17,15 +17,14 @@ Supported today:
 - media library root at `~/Movies/OmniLux`
 - user LaunchAgent named `tv.omnilux.server`
 
-Required before public customer use:
+Published release assets:
 
-- publish the Darwin runtime tarballs as public release assets:
-  - `omnilux-darwin-arm64.tar.gz`
-  - `omnilux-darwin-x64.tar.gz`
+- `omnilux-darwin-arm64.tar.gz`
+- `omnilux-darwin-x64.tar.gz`
 
 ## Install
 
-Once the release assets exist, the no-auth install command is:
+The no-auth install command is:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/install/install-macos.sh \

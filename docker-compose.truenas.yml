@@ -30,6 +30,8 @@ services:
       SUPABASE_URL: ${SUPABASE_URL:-https://api.omnilux.tv}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
       OMNILUX_CLOUD_METADATA_BROKER_TOKEN: ${OMNILUX_CLOUD_METADATA_BROKER_TOKEN:-}
+      OMNILUX_ENTITLEMENT_LEASE_PUBLIC_KEY_SPKI_B64URL: ${OMNILUX_ENTITLEMENT_LEASE_PUBLIC_KEY_SPKI_B64URL:-}
+      OMNILUX_ALLOW_UNSIGNED_ENTITLEMENT_LEASES: ${OMNILUX_ALLOW_UNSIGNED_ENTITLEMENT_LEASES:-false}
       OMNILUX_DEPLOYMENT_PROFILE: ${OMNILUX_DEPLOYMENT_PROFILE:-self-hosted}
       OMNILUX_PRIMARY_DEPLOYMENT: ${OMNILUX_PRIMARY_DEPLOYMENT:-truenas-custom-app}
       OMNILUX_PUBLIC_ORIGIN: ${OMNILUX_PUBLIC_ORIGIN:-}
@@ -74,12 +76,13 @@ services:
       OMNILUX_COMPOSE_FILE: docker-compose.truenas.yml
       OMNILUX_IMAGE: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}
       OMNILUX_UPDATER_TOKEN: ${OMNILUX_UPDATER_TOKEN:-}
+      OMNILUX_HEALTH_URL: ${OMNILUX_HEALTH_URL:-http://omnilux:4000/api/health}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /root/.docker:/root/.docker:ro
       - ${OMNILUX_STORAGE_ROOT:-/mnt/Storage/Applications/OmniLux}/repo:/repo
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4050/status"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4050/healthz"]
       interval: 30s
       timeout: 5s
       start_period: 5s

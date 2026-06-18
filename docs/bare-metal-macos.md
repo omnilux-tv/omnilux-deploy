@@ -57,7 +57,7 @@ Use a specific artifact URL:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/install/install-macos.sh \
-  | OMNILUX_ARTIFACT_URL=https://github.com/omnilux-tv/omnilux-deploy/releases/download/v0.1.0/omnilux-darwin-arm64.tar.gz \
+  | OMNILUX_ARTIFACT_URL=https://github.com/omnilux-tv/omnilux/releases/download/v0.1.0/omnilux-darwin-arm64.tar.gz \
     bash
 ```
 
@@ -159,7 +159,7 @@ Upgrade in place:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/install/install-macos.sh \
-  | OMNILUX_ARTIFACT_URL=https://github.com/omnilux-tv/omnilux-deploy/releases/latest/download/omnilux-darwin-arm64.tar.gz \
+  | OMNILUX_ARTIFACT_URL=https://github.com/omnilux-tv/omnilux/releases/latest/download/omnilux-darwin-arm64.tar.gz \
     bash
 ```
 

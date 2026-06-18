@@ -15,3 +15,21 @@ spec:
     requests:
       storage: {{ .Values.persistence.data.size }}
 {{- end }}
+{{- if .Values.persistence.plugins.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "omnilux.fullname" . }}-plugins
+  labels:
+    {{- include "omnilux.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.persistence.plugins.accessModes | nindent 4 }}
+  {{- if .Values.persistence.plugins.storageClass }}
+  storageClassName: {{ .Values.persistence.plugins.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.plugins.size }}
+{{- end }}

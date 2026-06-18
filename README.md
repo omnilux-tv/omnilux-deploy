@@ -76,6 +76,12 @@ Runtime deploy assumptions:
 
 - `docker-compose.truenas.yml` now pulls `${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}` at deploy time.
 - self-hosted cloud-linked traffic should target the branded public control-plane endpoint `https://api.omnilux.tv` instead of a raw `*.supabase.co` URL.
+- production cloud-linked entitlement checks require `OMNILUX_ENTITLEMENT_LEASE_PUBLIC_KEY_SPKI_B64URL`; `OMNILUX_ALLOW_UNSIGNED_ENTITLEMENT_LEASES=true` is only a temporary migration override.
+- cloud/edge infrastructure validation should use the VPS validation lane when
+  Docker or Caddy behavior matters: disposable containers on the VPS Docker
+  context, no production bind mounts, no live Supabase database mutation, and no
+  live Caddy reload before the explicit deploy step. Current IONOS context:
+  `omnilux-vps` -> `ssh://deploy@omnilux.tv`.
 - deployment profiles are opt-in:
   - `OMNILUX_DEPLOYMENT_PROFILE=self-hosted` for normal customer installs
 - `OMNILUX_PUBLIC_ORIGIN`, `OMNILUX_CLOUD_APP_URL`, and `OMNILUX_ALLOWED_ORIGINS` let the self-hosted runtime image declare the correct public hostname and browser origins.

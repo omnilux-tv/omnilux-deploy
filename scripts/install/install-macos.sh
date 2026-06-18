@@ -367,6 +367,8 @@ EOF
   append_env_default "OMNILUX_CLOUD_URL" "https://api.omnilux.tv"
   append_env_default "OMNILUX_CLOUD_APP_URL" "https://app.omnilux.tv"
   append_env_default "OMNILUX_RELAY_URL" "wss://relay.omnilux.tv/ws/server"
+  append_env_default "OMNILUX_ENTITLEMENT_LEASE_PUBLIC_KEY_SPKI_B64URL" ""
+  append_env_default "OMNILUX_ALLOW_UNSIGNED_ENTITLEMENT_LEASES" "false"
   append_env_default "OMNILUX_PUBLIC_ORIGIN" "${OMNILUX_PUBLIC_ORIGIN}"
   append_env_default "OMNILUX_ALLOWED_ORIGINS" "${OMNILUX_PUBLIC_ORIGIN}"
   append_env_default "OMNILUX_BROWSER_SOLVER" "auto"

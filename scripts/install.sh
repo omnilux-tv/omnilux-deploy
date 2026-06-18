@@ -93,11 +93,13 @@ services:
       - "1900:1900/udp"
     volumes:
       - omnilux-data:/app/data
+      - omnilux-plugins:/app/plugins
       - ${LIBRARY_ROOT:-~/Media}:/data
     environment:
       - PORT=4000
       - NODE_ENV=production
       - OMNILUX_DB_PATH=/app/data/omnilux.db
+      - OMNILUX_PLUGINS_DIR=/app/plugins
       - OMNILUX_LIBRARY_ROOT=/data
       - TMDB_API_KEY=${TMDB_API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
@@ -114,6 +116,7 @@ services:
       retries: 3
 volumes:
   omnilux-data:
+  omnilux-plugins:
 EOF
   ok "Wrote docker-compose.yml"
 }

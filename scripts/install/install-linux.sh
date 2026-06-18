@@ -53,6 +53,8 @@ Environment overrides:
   OMNILUX_SKIP_DEPENDENCIES=1   # skip apt package installation
   OMNILUX_SKIP_NODE_SETUP=1     # require an existing Node ${NODE_MAJOR}.x
   OMNILUX_START_SERVICE=0       # install files only, do not start systemd
+  OMNILUX_REGISTRY_USERNAME=github-user
+  GHCR_TOKEN=ghp_...            # optional, needed when the runtime image is private
 
 The installer downloads the published OmniLux runtime image from GHCR, extracts
 the built /app runtime into ${OMNILUX_APP_DIR}, and runs it as a native systemd
@@ -212,9 +214,21 @@ registry_token() {
   local registry="$1"
   local repository="$2"
   local token_file token
+  local username password
+
+  username="${OMNILUX_REGISTRY_USERNAME:-${GITHUB_ACTOR:-}}"
+  password="${OMNILUX_REGISTRY_PASSWORD:-${OMNILUX_REGISTRY_TOKEN:-${GHCR_TOKEN:-}}}"
+
+  local curl_args=(-fsSL)
+  if [[ -n "${password}" ]]; then
+    if [[ -z "${username}" ]]; then
+      die "Set OMNILUX_REGISTRY_USERNAME when using GHCR_TOKEN, OMNILUX_REGISTRY_TOKEN, or OMNILUX_REGISTRY_PASSWORD."
+    fi
+    curl_args+=(-u "${username}:${password}")
+  fi
 
   token_file="$(mktemp)"
-  if ! curl -fsSL "https://${registry}/token?service=${registry}&scope=repository:${repository}:pull" -o "${token_file}"; then
+  if ! curl "${curl_args[@]}" "https://${registry}/token?service=${registry}&scope=repository:${repository}:pull" -o "${token_file}"; then
     rm -f "${token_file}"
     return 1
   fi
@@ -539,7 +553,7 @@ download_runtime_image() {
   trap cleanup_tmp EXIT
 
   local token index_manifest selected_digest manifest_file revision
-  token="$(registry_token "${registry}" "${repository}")" || die "Could not get registry token for ${registry}/${repository}."
+  token="$(registry_token "${registry}" "${repository}")" || die "Could not get registry token for ${registry}/${repository}. If the image is private, set OMNILUX_REGISTRY_USERNAME and GHCR_TOKEN or OMNILUX_REGISTRY_PASSWORD."
   index_manifest="${tmp_dir}/index.json"
   registry_get_manifest "${registry}" "${repository}" "${reference}" "${token}" "${index_manifest}"
 
@@ -650,6 +664,8 @@ EOF
   append_env_default "OMNILUX_CLOUD_URL" "https://api.omnilux.tv"
   append_env_default "OMNILUX_CLOUD_APP_URL" "https://app.omnilux.tv"
   append_env_default "OMNILUX_RELAY_URL" "wss://relay.omnilux.tv/ws/server"
+  append_env_default "OMNILUX_ENTITLEMENT_LEASE_PUBLIC_KEY_SPKI_B64URL" ""
+  append_env_default "OMNILUX_ALLOW_UNSIGNED_ENTITLEMENT_LEASES" "false"
   append_env_default "OMNILUX_PUBLIC_ORIGIN" "${OMNILUX_PUBLIC_ORIGIN}"
   append_env_default "OMNILUX_ALLOWED_ORIGINS" "${OMNILUX_PUBLIC_ORIGIN}"
   append_env_default "OMNILUX_BROWSER_SOLVER" "auto"

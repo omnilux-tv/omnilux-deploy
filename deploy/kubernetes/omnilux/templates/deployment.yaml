@@ -81,6 +81,8 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /app/data
+            - name: plugins
+              mountPath: /app/plugins
             {{- if .Values.persistence.media.enabled }}
             - name: media
               mountPath: {{ .Values.persistence.media.mountPath }}
@@ -91,6 +93,13 @@ spec:
           {{- if .Values.persistence.data.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "omnilux.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: plugins
+          {{- if .Values.persistence.plugins.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "omnilux.fullname" . }}-plugins
           {{- else }}
           emptyDir: {}
           {{- end }}

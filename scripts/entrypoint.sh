@@ -19,4 +19,23 @@ chown -R omnilux:omnilux "$INGESTION_DIR" /app/data /app/plugins 2>/dev/null || 
 
 # Start the application
 echo "[server] Starting OmniLux..."
-exec su -s /bin/sh omnilux -c 'node apps/server/dist/index.js'
+SERVER_ENTRYPOINT="apps/server/dist/server/src/backend/index.js"
+if [ ! -f "$SERVER_ENTRYPOINT" ] && [ -f "apps/server/dist/server/index.js" ]; then
+  SERVER_ENTRYPOINT="apps/server/dist/server/index.js"
+fi
+if [ ! -f "$SERVER_ENTRYPOINT" ] && [ -f "apps/server/.output/server/index.mjs" ]; then
+  SERVER_ENTRYPOINT="apps/server/.output/server/index.mjs"
+fi
+
+if [ "$SERVER_ENTRYPOINT" = "apps/server/dist/server/src/backend/index.js" ] || [ "$SERVER_ENTRYPOINT" = "apps/server/dist/server/index.js" ]; then
+  find apps/server/dist/server -type f -name '*.js' -exec sh -c '
+    for file do
+      target="${file%.js}"
+      if [ ! -e "$target" ]; then
+        ln -s "$(basename "$file")" "$target"
+      fi
+    done
+  ' sh {} +
+fi
+
+exec su -s /bin/sh omnilux -c "node $SERVER_ENTRYPOINT"

@@ -5,7 +5,10 @@ const port = Number(process.env.PORT || 4050);
 const repoDir = process.env.OMNILUX_REPO_DIR || '/repo';
 const composeFile = process.env.OMNILUX_COMPOSE_FILE || 'docker-compose.truenas.yml';
 const image = process.env.OMNILUX_IMAGE || 'ghcr.io/omnilux-tv/omnilux:latest';
-const token = process.env.OMNILUX_UPDATER_TOKEN || '';
+const token = (process.env.OMNILUX_UPDATER_TOKEN || '').trim();
+const healthUrl = process.env.OMNILUX_HEALTH_URL || 'http://omnilux:4000/api/health';
+const healthTimeoutMs = Number(process.env.OMNILUX_HEALTH_TIMEOUT_MS || 120000);
+const healthIntervalMs = Number(process.env.OMNILUX_HEALTH_INTERVAL_MS || 3000);
 
 const state = {
   state: 'idle',
@@ -33,8 +36,7 @@ function send(res, status, payload) {
 }
 
 function authorized(req) {
-  if (!token) return true;
-  return req.headers.authorization === `Bearer ${token}`;
+  return Boolean(token) && req.headers.authorization === `Bearer ${token}`;
 }
 
 function run(command, args) {
@@ -61,6 +63,37 @@ function run(command, args) {
   });
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function waitForRuntimeHealth() {
+  const deadline = Date.now() + healthTimeoutMs;
+  let lastError = 'Runtime health check did not complete.';
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(healthUrl, {
+        signal: AbortSignal.timeout(Math.min(healthIntervalMs, 5000)),
+      });
+      if (response.ok) {
+        appendLog(`Runtime health check passed at ${healthUrl}.`);
+        return;
+      }
+      lastError = `Runtime health returned HTTP ${response.status}.`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : 'Runtime health request failed.';
+    }
+
+    appendLog(`Waiting for runtime health: ${lastError}`);
+    await sleep(healthIntervalMs);
+  }
+
+  throw new Error(`Runtime did not become healthy within ${healthTimeoutMs}ms: ${lastError}`);
+}
+
 async function doUpdate() {
   state.state = 'running';
   state.message = 'Pulling latest image and recreating OmniLux.';
@@ -71,8 +104,10 @@ async function doUpdate() {
   try {
     await run('docker', ['compose', '-f', composeFile, 'pull', 'omnilux']);
     await run('docker', ['compose', '-f', composeFile, 'up', '-d', '--force-recreate', 'omnilux']);
+    state.message = 'Waiting for OmniLux health check after recreate.';
+    await waitForRuntimeHealth();
     state.state = 'succeeded';
-    state.message = 'Update completed. OmniLux is recreating and will be reachable again shortly.';
+    state.message = 'Update completed and OmniLux passed health checks.';
   } catch (error) {
     state.state = 'failed';
     state.message = error instanceof Error ? error.message : 'Update failed.';
@@ -83,8 +118,19 @@ async function doUpdate() {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.method === 'GET' && req.url === '/healthz') {
+    send(res, 200, {
+      ok: true,
+      tokenConfigured: Boolean(token),
+      state: state.state,
+    });
+    return;
+  }
+
   if (!authorized(req)) {
-    send(res, 401, { error: 'Unauthorized' });
+    send(res, token ? 401 : 503, {
+      error: token ? 'Unauthorized' : 'Updater token is not configured.',
+    });
     return;
   }
 
@@ -116,5 +162,6 @@ server.listen(port, '0.0.0.0', () => {
     timestamp: new Date().toISOString(),
     source: 'omnilux-updater',
     message: `Updater listening on ${port}`,
+    tokenConfigured: Boolean(token),
   }));
 });

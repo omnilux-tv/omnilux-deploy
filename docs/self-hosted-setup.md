@@ -38,6 +38,8 @@ docker compose -f docker-compose.truenas.yml pull omnilux omnilux-updater
 docker compose -f docker-compose.truenas.yml up -d --build
 ```
 
+If you enable the updater sidecar, set `OMNILUX_UPDATER_TOKEN` to a long random value and pass the same value to both services. Leaving it unset disables the updater control API; it does not create an unauthenticated updater.
+
 Health: `GET http://<host>:<mapped-port>/api/health` (default TrueNAS mapping in the contract file is `38400:4000`).
 
 ## 5. Stay on a current image

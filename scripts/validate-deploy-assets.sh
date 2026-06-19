@@ -10,7 +10,7 @@ command -v docker >/dev/null 2>&1 || {
 }
 
 echo "==> Syntax-checking shell scripts"
-bash -n "$ROOT"/scripts/*.sh "$ROOT"/scripts/install/*.sh
+bash -n "$ROOT"/scripts/*.sh "$ROOT"/scripts/omnilux "$ROOT"/scripts/install/*.sh
 
 echo "==> Rendering Docker Compose contracts"
 docker compose --env-file "$ENV_FILE" -f "$ROOT/docker/docker-compose.yml" config >/dev/null

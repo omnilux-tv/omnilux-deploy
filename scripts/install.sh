@@ -8,6 +8,8 @@ INSTALL_DIR="$HOME/.omnilux"
 IMAGE="ghcr.io/omnilux-tv/omnilux:latest"
 DEFAULT_PORT=4000
 DEFAULT_LIBRARY="$HOME/Media"
+CLI_URL="${OMNILUX_CLI_URL:-https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/omnilux}"
+CLI_PATH="${OMNILUX_CLI_PATH:-$HOME/.local/bin/omnilux}"
 
 cat << 'BANNER'
 
@@ -132,6 +134,25 @@ start_container() {
   ok "OmniLux is running"
 }
 
+install_cli() {
+  local cli_source
+  cli_source="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)/omnilux"
+
+  mkdir -p "$(dirname "$CLI_PATH")"
+  if [[ -f "$cli_source" ]]; then
+    install -m 0755 "$cli_source" "$CLI_PATH"
+  else
+    curl -fsSL "$CLI_URL" -o "$CLI_PATH"
+    chmod 0755 "$CLI_PATH"
+  fi
+
+  ok "Installed OmniLux CLI at $CLI_PATH"
+  case ":$PATH:" in
+    *":$(dirname "$CLI_PATH"):"*) ;;
+    *) warn "$(dirname "$CLI_PATH") is not in PATH. Add it to your shell profile to run: omnilux" ;;
+  esac
+}
+
 main() {
   detect_os
   check_docker
@@ -139,6 +160,7 @@ main() {
   write_env
   write_compose
   start_container
+  install_cli
 
   local port
   port=$(grep "^PORT=" "$INSTALL_DIR/.env" | cut -d= -f2)
@@ -149,7 +171,7 @@ main() {
   echo ""
   info "Config directory: $INSTALL_DIR"
   info "To stop:   $SUDO docker compose -f $INSTALL_DIR/docker-compose.yml down"
-  info "To update: re-run this script"
+  info "To update: omnilux update --run"
 }
 
 main

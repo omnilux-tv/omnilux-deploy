@@ -23,6 +23,8 @@ OMNILUX_START_SERVICE="${OMNILUX_START_SERVICE:-1}"
 OMNILUX_SKIP_DEPENDENCIES="${OMNILUX_SKIP_DEPENDENCIES:-0}"
 OMNILUX_SKIP_NODE_SETUP="${OMNILUX_SKIP_NODE_SETUP:-0}"
 OMNILUX_PUBLIC_ORIGIN="${OMNILUX_PUBLIC_ORIGIN:-}"
+OMNILUX_CLI_URL="${OMNILUX_CLI_URL:-https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/omnilux}"
+OMNILUX_CLI_PATH="${OMNILUX_CLI_PATH:-/usr/local/bin/omnilux}"
 TMDB_API_KEY="${TMDB_API_KEY:-}"
 
 SERVICE_FILE="/etc/systemd/system/${OMNILUX_SERVICE_NAME}.service"
@@ -50,6 +52,7 @@ Environment overrides:
   OMNILUX_MEDIA_DIR=${OMNILUX_MEDIA_DIR}
   OMNILUX_PORT=${OMNILUX_PORT}
   OMNILUX_PUBLIC_ORIGIN=${OMNILUX_PUBLIC_ORIGIN:-}
+  OMNILUX_CLI_PATH=${OMNILUX_CLI_PATH}
   OMNILUX_SKIP_DEPENDENCIES=1   # skip apt package installation
   OMNILUX_SKIP_NODE_SETUP=1     # require an existing Node ${NODE_MAJOR}.x
   OMNILUX_START_SERVICE=0       # install files only, do not start systemd
@@ -717,6 +720,22 @@ EOF
   ok "systemd service installed at ${SERVICE_FILE}"
 }
 
+install_cli() {
+  local cli_source
+  cli_source="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || true)/omnilux"
+
+  install -d -m 0755 -o root -g root "$(dirname "${OMNILUX_CLI_PATH}")"
+  if [[ -f "${cli_source}" ]]; then
+    install -m 0755 -o root -g root "${cli_source}" "${OMNILUX_CLI_PATH}"
+  else
+    curl -fsSL "${OMNILUX_CLI_URL}" -o "${OMNILUX_CLI_PATH}"
+    chown root:root "${OMNILUX_CLI_PATH}"
+    chmod 0755 "${OMNILUX_CLI_PATH}"
+  fi
+
+  ok "OmniLux CLI installed at ${OMNILUX_CLI_PATH}"
+}
+
 start_and_check_service() {
   if [[ "${OMNILUX_START_SERVICE}" != "1" ]]; then
     warn "Skipping service start because OMNILUX_START_SERVICE=${OMNILUX_START_SERVICE}"
@@ -763,6 +782,7 @@ install_or_upgrade() {
   download_runtime_image
   write_env_file
   write_systemd_service
+  install_cli
   start_and_check_service
 }
 

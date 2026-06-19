@@ -43,7 +43,8 @@ The installer:
 6. Extracts the built `/app` runtime into `/opt/omnilux`.
 7. Writes `/etc/omnilux/omnilux.env`.
 8. Installs and starts `/etc/systemd/system/omnilux.service`.
-9. Verifies `http://127.0.0.1:4000/api/health`.
+9. Installs the `omnilux` management CLI.
+10. Verifies `http://127.0.0.1:4000/api/health`.
 
 ## Useful overrides
 
@@ -66,6 +67,7 @@ Common options:
 | `OMNILUX_DATA_DIR` | `/var/lib/omnilux` | Database, downloads, logs, and local state. |
 | `OMNILUX_PLUGINS_DIR` | `/var/lib/omnilux/plugins` | Installed plugin state. |
 | `OMNILUX_MEDIA_DIR` | `/srv/media` | Host media library root. |
+| `OMNILUX_CLI_PATH` | `/usr/local/bin/omnilux` | Installed runtime management CLI path. |
 | `OMNILUX_PORT` | `4000` | HTTP port for UI and API. |
 | `OMNILUX_PUBLIC_ORIGIN` | empty | External origin when reverse proxied. |
 | `OMNILUX_SKIP_DEPENDENCIES` | `0` | Set `1` when apt dependencies are already managed. |
@@ -105,6 +107,7 @@ sudo systemctl restart omnilux
 Health:
 
 ```bash
+omnilux status
 curl -fsS http://127.0.0.1:4000/api/health
 systemctl status omnilux
 ```
@@ -112,21 +115,26 @@ systemctl status omnilux
 Logs:
 
 ```bash
+omnilux logs --follow
 journalctl -u omnilux -f
 ```
 
 Restart:
 
 ```bash
+omnilux restart
 sudo systemctl restart omnilux
 ```
 
 Upgrade in place:
 
 ```bash
+omnilux update --run
 curl -fsSL https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/install/install-linux.sh \
   | sudo OMNILUX_IMAGE=ghcr.io/omnilux-tv/omnilux:latest bash
 ```
+
+See [`runtime-cli.md`](runtime-cli.md) for all runtime management commands.
 
 Check an existing install:
 

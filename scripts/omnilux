@@ -1,0 +1,714 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_NAME="OmniLux"
+DEFAULT_SERVICE_NAME="omnilux"
+DEFAULT_LAUNCHD_LABEL="tv.omnilux.server"
+DEFAULT_CONTAINER_NAME="omnilux"
+DEFAULT_COMPOSE_SERVICE="omnilux"
+
+info() { printf '[info] %s\n' "$*"; }
+warn() { printf '[warn] %s\n' "$*" >&2; }
+error() { printf '[error] %s\n' "$*" >&2; }
+
+usage() {
+  cat <<'EOF'
+OmniLux runtime management CLI
+
+Usage:
+  omnilux <command> [options]
+
+Commands:
+  status      Show runtime, service, install, and health status
+  restart     Restart the OmniLux runtime service or container
+  services    Show native service or Docker service details
+  plugins     Show installed plugin state and plugin directory
+  auth        Show local setup/auth readiness
+  update      Show or run the supported runtime update path
+  logs        Show recent runtime logs
+  media       Show media library and scan state
+  connect     Show OmniLux Cloud and relay connection state
+  help        Show this help
+
+Options:
+  --follow, -f       Follow logs with "omnilux logs"
+  --tail <lines>     Number of log lines to show with "omnilux logs" (default: 100)
+  --check           Check update status with "omnilux update"
+  --run             Execute update actions with "omnilux update"
+
+Environment:
+  OMNILUX_RUNTIME_URL       Runtime URL, default http://127.0.0.1:$PORT or :4000
+  OMNILUX_API_TOKEN         Optional bearer token for authenticated API calls
+  OMNILUX_ENV_FILE          Runtime env file path
+  OMNILUX_CONFIG_DIR        Runtime config directory
+  OMNILUX_SERVICE_NAME      systemd unit name, default omnilux
+  OMNILUX_SERVICE_LABEL     launchd label, default tv.omnilux.server
+  OMNILUX_CONTAINER_NAME    Docker container name, default omnilux
+  OMNILUX_COMPOSE_SERVICE   Docker Compose service name, default omnilux
+  OMNILUX_COMPOSE_FILE      Docker Compose file for update/restart/logs
+  OMNILUX_COMPOSE_PROJECT   Docker Compose project name
+EOF
+}
+
+die_usage() {
+  usage >&2
+  error "$*"
+  exit 2
+}
+
+platform() {
+  uname -s 2>/dev/null || printf 'unknown'
+}
+
+default_config_dir() {
+  case "$(platform)" in
+    Darwin) printf '%s/Library/Application Support/OmniLux' "${HOME}" ;;
+    Linux) printf '/etc/omnilux' ;;
+    *) printf '%s/.omnilux' "${HOME}" ;;
+  esac
+}
+
+CONFIG_DIR="${OMNILUX_CONFIG_DIR:-$(default_config_dir)}"
+ENV_FILE="${OMNILUX_ENV_FILE:-${CONFIG_DIR}/omnilux.env}"
+INSTALL_METADATA_FILE="${OMNILUX_INSTALL_METADATA_FILE:-${CONFIG_DIR}/install.json}"
+SERVICE_NAME="${OMNILUX_SERVICE_NAME:-${DEFAULT_SERVICE_NAME}}"
+SERVICE_LABEL="${OMNILUX_SERVICE_LABEL:-${DEFAULT_LAUNCHD_LABEL}}"
+CONTAINER_NAME="${OMNILUX_CONTAINER_NAME:-${DEFAULT_CONTAINER_NAME}}"
+COMPOSE_SERVICE="${OMNILUX_COMPOSE_SERVICE:-${DEFAULT_COMPOSE_SERVICE}}"
+
+load_env_file() {
+  if [[ -f "${ENV_FILE}" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "${ENV_FILE}"
+    set +a
+  fi
+}
+
+runtime_url() {
+  local port="${PORT:-4000}"
+  printf '%s' "${OMNILUX_RUNTIME_URL:-${OMNILUX_URL:-http://127.0.0.1:${port}}}"
+}
+
+curl_api() {
+  local path="$1"
+  local url
+  url="$(runtime_url)${path}"
+  local args=(-fsS --max-time "${OMNILUX_CLI_HTTP_TIMEOUT:-5}")
+  if [[ -n "${OMNILUX_API_TOKEN:-}" ]]; then
+    args+=(-H "Authorization: Bearer ${OMNILUX_API_TOKEN}")
+  fi
+  curl "${args[@]}" "${url}"
+}
+
+curl_api_status() {
+  local path="$1"
+  local body_file="$2"
+  local url
+  url="$(runtime_url)${path}"
+  local args=(-sS --max-time "${OMNILUX_CLI_HTTP_TIMEOUT:-5}" -o "${body_file}" -w '%{http_code}')
+  if [[ -n "${OMNILUX_API_TOKEN:-}" ]]; then
+    args+=(-H "Authorization: Bearer ${OMNILUX_API_TOKEN}")
+  fi
+  curl "${args[@]}" "${url}" 2>/dev/null || true
+}
+
+json_field() {
+  local field_path="$1"
+  if ! command -v node >/dev/null 2>&1; then
+    return 1
+  fi
+  node -e '
+const fieldPath = process.argv[1].split(".");
+let input = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", chunk => input += chunk);
+process.stdin.on("end", () => {
+  try {
+    let value = JSON.parse(input);
+    for (const field of fieldPath) {
+      if (value == null || !(field in Object(value))) process.exit(1);
+      value = value[field];
+    }
+    if (value == null) process.exit(1);
+    if (typeof value === "object") process.stdout.write(JSON.stringify(value));
+    else process.stdout.write(String(value));
+  } catch {
+    process.exit(1);
+  }
+});
+' "${field_path}"
+}
+
+json_summary() {
+  if ! command -v node >/dev/null 2>&1; then
+    cat
+    return
+  fi
+  node -e '
+let input = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", chunk => input += chunk);
+process.stdin.on("end", () => {
+  try {
+    const payload = JSON.parse(input);
+    const pairs = [];
+    for (const key of ["status", "version", "nodeVersion", "needsSetup", "setupAllowed", "displayName", "publicOrigin", "cloudAppOrigin", "enabled", "condition", "region", "lastHeartbeatAt"]) {
+      if (payload[key] !== undefined && payload[key] !== null) pairs.push(`${key}: ${String(payload[key])}`);
+    }
+    if (payload.runtimeHealth?.readiness?.label) pairs.push(`readiness: ${payload.runtimeHealth.readiness.label}`);
+    if (payload.runtimeHealth?.library?.totalFiles !== undefined) pairs.push(`libraryFiles: ${payload.runtimeHealth.library.totalFiles}`);
+    if (payload.runtimeHealth?.library?.scan?.running !== undefined) pairs.push(`scanRunning: ${payload.runtimeHealth.library.scan.running}`);
+    if (payload.scanning !== undefined) pairs.push(`scanning: ${payload.scanning}`);
+    if (payload.discoveredRoots) pairs.push(`roots: ${payload.discoveredRoots.length}`);
+    if (pairs.length === 0) {
+      process.stdout.write(JSON.stringify(payload, null, 2));
+      return;
+    }
+    process.stdout.write(pairs.join("\n"));
+  } catch {
+    process.stdout.write(input);
+  }
+});
+'
+}
+
+metadata_summary() {
+  [[ -f "${INSTALL_METADATA_FILE}" ]] || return 0
+  printf 'Install metadata: %s\n' "${INSTALL_METADATA_FILE}"
+  if command -v node >/dev/null 2>&1; then
+    node - "${INSTALL_METADATA_FILE}" <<'NODE'
+const fs = require('node:fs');
+const file = process.argv[2];
+const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+for (const key of ['image', 'artifact', 'platform', 'arch', 'manifest', 'revision', 'installedAt', 'runtimeDir', 'previousRuntimeDir']) {
+  if (payload[key]) console.log(`  ${key}: ${payload[key]}`);
+}
+NODE
+  else
+    sed -n '1,40p' "${INSTALL_METADATA_FILE}" | sed 's/^/  /'
+  fi
+}
+
+systemd_available() {
+  command -v systemctl >/dev/null 2>&1 \
+    && systemctl list-unit-files "${SERVICE_NAME}.service" >/dev/null 2>&1
+}
+
+launchd_plist() {
+  printf '%s' "${OMNILUX_PLIST_FILE:-${HOME}/Library/LaunchAgents/${SERVICE_LABEL}.plist}"
+}
+
+launchd_domain() {
+  printf 'gui/%s' "$(id -u)"
+}
+
+launchd_available() {
+  [[ "$(platform)" == "Darwin" ]] && [[ -f "$(launchd_plist)" ]]
+}
+
+docker_available() {
+  command -v docker >/dev/null 2>&1 && docker inspect "${CONTAINER_NAME}" >/dev/null 2>&1
+}
+
+runtime_mode() {
+  if systemd_available; then
+    printf 'systemd'
+  elif launchd_available; then
+    printf 'launchd'
+  elif docker_available; then
+    printf 'docker'
+  else
+    printf 'unknown'
+  fi
+}
+
+compose_args_from_container() {
+  if [[ -n "${OMNILUX_COMPOSE_FILE:-}" ]]; then
+    printf -- '-f\n%s\n' "${OMNILUX_COMPOSE_FILE}"
+    if [[ -n "${OMNILUX_COMPOSE_PROJECT:-}" ]]; then
+      printf -- '-p\n%s\n' "${OMNILUX_COMPOSE_PROJECT}"
+    fi
+    return
+  fi
+
+  docker inspect "${CONTAINER_NAME}" --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}' 2>/dev/null | tr ',' '\n' | while IFS= read -r file; do
+    [[ -n "${file}" ]] && printf -- '-f\n%s\n' "${file}"
+  done
+
+  local project
+  project="$(docker inspect "${CONTAINER_NAME}" --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null || true)"
+  if [[ -n "${project}" && "${project}" != "<no value>" ]]; then
+    printf -- '-p\n%s\n' "${project}"
+  fi
+}
+
+docker_compose_command() {
+  if docker compose version >/dev/null 2>&1; then
+    printf 'docker compose'
+  elif command -v docker-compose >/dev/null 2>&1; then
+    printf 'docker-compose'
+  else
+    return 1
+  fi
+}
+
+run_compose() {
+  local compose_command
+  compose_command="$(docker_compose_command)" || return 1
+  local args=()
+  while IFS= read -r arg; do
+    args+=("${arg}")
+  done < <(compose_args_from_container)
+  [[ "${#args[@]}" -gt 0 ]] || return 1
+
+  if [[ "${compose_command}" == "docker compose" ]]; then
+    docker compose "${args[@]}" "$@"
+  else
+    docker-compose "${args[@]}" "$@"
+  fi
+}
+
+sudo_or_run() {
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    error "This action requires root privileges. Re-run with sudo."
+    exit 1
+  fi
+}
+
+wait_for_health() {
+  local url
+  url="$(runtime_url)/api/health"
+  for _ in $(seq 1 "${OMNILUX_CLI_HEALTH_ATTEMPTS:-30}"); do
+    if curl -fsS --max-time 2 "${url}" >/dev/null 2>&1; then
+      info "${APP_NAME} is healthy at ${url}"
+      return 0
+    fi
+    sleep 2
+  done
+  warn "${APP_NAME} did not report healthy at ${url}"
+  return 1
+}
+
+command_status() {
+  local mode health_file status_code
+  mode="$(runtime_mode)"
+  printf 'OmniLux status\n'
+  printf 'Mode: %s\n' "${mode}"
+  printf 'Runtime URL: %s\n' "$(runtime_url)"
+  printf 'Env file: %s%s\n' "${ENV_FILE}" "$([[ -f "${ENV_FILE}" ]] && printf '' || printf ' (missing)')"
+
+  case "${mode}" in
+    systemd)
+      printf 'Service: %s.service\n' "${SERVICE_NAME}"
+      printf 'Active: %s\n' "$(systemctl is-active "${SERVICE_NAME}.service" 2>/dev/null || printf 'unknown')"
+      printf 'Enabled: %s\n' "$(systemctl is-enabled "${SERVICE_NAME}.service" 2>/dev/null || printf 'unknown')"
+      ;;
+    launchd)
+      printf 'LaunchAgent: %s\n' "$(launchd_plist)"
+      if launchctl print "$(launchd_domain)/${SERVICE_LABEL}" >/dev/null 2>&1; then
+        printf 'Loaded: yes\n'
+      else
+        printf 'Loaded: no\n'
+      fi
+      ;;
+    docker)
+      printf 'Container: %s\n' "${CONTAINER_NAME}"
+      printf 'Container state: %s\n' "$(docker inspect "${CONTAINER_NAME}" --format '{{.State.Status}}{{if .State.Health}} (health: {{.State.Health.Status}}){{end}}' 2>/dev/null || printf 'unknown')"
+      printf 'Image: %s\n' "$(docker inspect "${CONTAINER_NAME}" --format '{{.Config.Image}}' 2>/dev/null || printf 'unknown')"
+      ;;
+    *)
+      warn "No native service or Docker container was detected."
+      ;;
+  esac
+
+  health_file="$(mktemp)"
+  status_code="$(curl_api_status '/api/health' "${health_file}")"
+  if [[ "${status_code}" == "200" ]]; then
+    printf 'Health: reachable\n'
+    json_summary < "${health_file}" | sed 's/^/  /'
+    printf '\n'
+  else
+    printf 'Health: unavailable'
+    [[ "${status_code}" != "000" ]] && printf ' (HTTP %s)' "${status_code}"
+    printf '\n'
+  fi
+  rm -f "${health_file}"
+  metadata_summary
+}
+
+command_restart() {
+  case "$(runtime_mode)" in
+    systemd)
+      info "Restarting ${SERVICE_NAME}.service..."
+      sudo_or_run systemctl restart "${SERVICE_NAME}.service"
+      ;;
+    launchd)
+      info "Restarting ${SERVICE_LABEL}..."
+      launchctl bootout "$(launchd_domain)" "$(launchd_plist)" >/dev/null 2>&1 || true
+      launchctl bootstrap "$(launchd_domain)" "$(launchd_plist)"
+      launchctl enable "$(launchd_domain)/${SERVICE_LABEL}" >/dev/null 2>&1 || true
+      launchctl kickstart -k "$(launchd_domain)/${SERVICE_LABEL}" >/dev/null 2>&1 || true
+      ;;
+    docker)
+      info "Restarting Docker runtime..."
+      if ! run_compose restart "${COMPOSE_SERVICE}" 2>/dev/null; then
+        docker restart "${CONTAINER_NAME}" >/dev/null
+      fi
+      ;;
+    *)
+      error "No supported OmniLux service was found to restart."
+      exit 1
+      ;;
+  esac
+  wait_for_health || exit 1
+}
+
+command_services() {
+  case "$(runtime_mode)" in
+    systemd)
+      systemctl status "${SERVICE_NAME}.service" --no-pager -l --lines=30 || true
+      ;;
+    launchd)
+      printf 'LaunchAgent plist: %s\n' "$(launchd_plist)"
+      launchctl print "$(launchd_domain)/${SERVICE_LABEL}" || true
+      ;;
+    docker)
+      docker ps --filter "name=^/${CONTAINER_NAME}$"
+      printf '\n'
+      run_compose ps 2>/dev/null || true
+      ;;
+    *)
+      warn "No supported OmniLux service was detected."
+      ;;
+  esac
+}
+
+print_plugins_from_directory() {
+  local plugins_dir="${OMNILUX_PLUGINS_DIR:-}"
+  if [[ -z "${plugins_dir}" ]]; then
+    case "$(platform)" in
+      Darwin) plugins_dir="${HOME}/Library/Application Support/OmniLux/plugins" ;;
+      Linux) plugins_dir="/var/lib/omnilux/plugins" ;;
+      *) plugins_dir="${HOME}/.omnilux/plugins" ;;
+    esac
+  fi
+
+  printf 'Plugin directory: %s\n' "${plugins_dir}"
+  if [[ ! -d "${plugins_dir}" ]]; then
+    printf 'No plugin directory found.\n'
+    return
+  fi
+
+  local found=0
+  while IFS= read -r dir; do
+    found=1
+    local manifest="${dir}/omnilux-plugin.json"
+    if [[ -f "${manifest}" ]] && command -v node >/dev/null 2>&1; then
+      node - "${manifest}" <<'NODE'
+const fs = require('node:fs');
+const manifest = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+console.log(`${manifest.displayName || manifest.name || 'Unknown plugin'} ${manifest.version ? `(${manifest.version})` : ''}`.trim());
+NODE
+    else
+      basename "${dir}"
+    fi
+  done < <(find "${plugins_dir}" -mindepth 1 -maxdepth 1 -type d ! -name '.staging' | sort)
+
+  [[ "${found}" == "1" ]] || printf 'No plugins installed.\n'
+}
+
+command_plugins() {
+  local body_file status_code
+  body_file="$(mktemp)"
+  status_code="$(curl_api_status '/api/plugins' "${body_file}")"
+  if [[ "${status_code}" == "200" ]]; then
+    if command -v node >/dev/null 2>&1; then
+      node - "${body_file}" <<'NODE'
+const fs = require('node:fs');
+const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const plugins = payload.plugins || [];
+if (plugins.length === 0) {
+  console.log('No plugins installed.');
+} else {
+  for (const plugin of plugins) {
+    const status = plugin.enabled === false ? 'disabled' : 'enabled';
+    console.log(`${plugin.displayName || plugin.name || plugin.id} (${plugin.version || 'unknown'}) - ${status}`);
+  }
+}
+NODE
+    else
+      cat "${body_file}"
+    fi
+  else
+    if [[ "${status_code}" == "401" || "${status_code}" == "403" ]]; then
+      warn "Plugin API requires an admin token. Set OMNILUX_API_TOKEN for API-backed plugin state."
+    elif [[ "${status_code}" != "000" ]]; then
+      warn "Plugin API returned HTTP ${status_code}; showing filesystem state."
+    else
+      warn "Runtime API is not reachable; showing filesystem state."
+    fi
+    print_plugins_from_directory
+  fi
+  rm -f "${body_file}"
+}
+
+command_auth() {
+  local body_file status_code
+  body_file="$(mktemp)"
+  status_code="$(curl_api_status '/api/auth/setup-status' "${body_file}")"
+  if [[ "${status_code}" == "200" ]]; then
+    printf 'Auth setup status:\n'
+    json_summary < "${body_file}" | sed 's/^/  /'
+    printf '\n'
+    if json_field needsSetup < "${body_file}" 2>/dev/null | grep -qx 'true'; then
+      printf 'Next step: open %s/setup to create the first admin account.\n' "$(runtime_url)"
+    else
+      printf 'Admin setup is complete. Use the web UI to manage sessions and users.\n'
+    fi
+  else
+    error "Could not reach auth setup endpoint at $(runtime_url)/api/auth/setup-status"
+    [[ "${status_code}" != "000" ]] && error "HTTP status: ${status_code}"
+    exit 1
+  fi
+  rm -f "${body_file}"
+}
+
+print_update_api_status() {
+  local body_file status_code
+  body_file="$(mktemp)"
+  status_code="$(curl_api_status '/api/server/update/check' "${body_file}")"
+  if [[ "${status_code}" == "200" ]]; then
+    if command -v node >/dev/null 2>&1; then
+      node - "${body_file}" <<'NODE'
+const fs = require('node:fs');
+const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+console.log('Runtime update status:');
+console.log(`  state: ${payload.status?.state || 'unknown'}`);
+console.log(`  current: ${payload.version?.current || payload.status?.version || 'unknown'}`);
+if (payload.version?.latest) console.log(`  latest: ${payload.version.latest}`);
+console.log(`  updateAvailable: ${payload.version?.updateAvailable ? 'yes' : 'no'}`);
+console.log(`  canApplyInApp: ${payload.canApply ? 'yes' : 'no'}`);
+console.log(`  message: ${payload.message || payload.status?.message || 'No update message returned.'}`);
+if (payload.version?.releaseUrl) console.log(`  releaseUrl: ${payload.version.releaseUrl}`);
+NODE
+    else
+      cat "${body_file}"
+    fi
+    rm -f "${body_file}"
+    return 0
+  fi
+
+  if [[ "${status_code}" == "401" || "${status_code}" == "403" ]]; then
+    warn "Update API requires an admin token. Set OMNILUX_API_TOKEN to include release and updater status."
+  elif [[ "${status_code}" != "000" ]]; then
+    warn "Update API returned HTTP ${status_code}; showing local update path only."
+  else
+    warn "Runtime API is not reachable; showing local update path only."
+  fi
+  rm -f "${body_file}"
+  return 1
+}
+
+command_update() {
+  local run_update="${1:-0}"
+  if [[ "${run_update}" == "0" ]]; then
+    print_update_api_status || true
+    printf '\n'
+  fi
+
+  case "$(runtime_mode)" in
+    docker)
+      if [[ "${run_update}" == "1" ]]; then
+        info "Pulling and recreating Docker runtime..."
+        if run_compose pull "${COMPOSE_SERVICE}" && run_compose up -d --force-recreate "${COMPOSE_SERVICE}"; then
+          wait_for_health || exit 1
+        else
+          error "Docker Compose update failed. Check compose file/project detection or set OMNILUX_COMPOSE_FILE."
+          exit 1
+        fi
+      else
+        printf 'Docker update path detected.\n'
+        printf 'Run: omnilux update --run\n'
+        printf 'This will pull the configured image and recreate the %s service.\n' "${COMPOSE_SERVICE}"
+      fi
+      ;;
+    systemd)
+      if [[ "${run_update}" == "1" ]]; then
+        local installer_url="${OMNILUX_LINUX_INSTALLER_URL:-https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/install/install-linux.sh}"
+        info "Running native Linux updater from ${installer_url}..."
+        curl -fsSL "${installer_url}" | sudo_or_run env OMNILUX_START_SERVICE=1 bash -s -- upgrade
+      else
+        printf 'Native Linux update path detected.\n'
+        printf 'Run: omnilux update --run\n'
+        printf 'This reruns the official image-based Linux installer in upgrade mode.\n'
+      fi
+      ;;
+    launchd)
+      if [[ "${run_update}" == "1" ]]; then
+        local installer_url="${OMNILUX_MACOS_INSTALLER_URL:-https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/install/install-macos.sh}"
+        info "Running native macOS updater from ${installer_url}..."
+        curl -fsSL "${installer_url}" | bash -s -- upgrade
+      else
+        printf 'Native macOS update path detected.\n'
+        printf 'Run: omnilux update --run\n'
+        printf 'This reruns the official artifact-based macOS installer in upgrade mode.\n'
+      fi
+      ;;
+    *)
+      error "No supported update target was detected."
+      exit 1
+      ;;
+  esac
+}
+
+command_logs() {
+  local follow="$1"
+  local tail_lines="$2"
+  case "$(runtime_mode)" in
+    systemd)
+      local args=(-u "${SERVICE_NAME}.service" -n "${tail_lines}" --no-pager)
+      [[ "${follow}" == "1" ]] && args=(-u "${SERVICE_NAME}.service" -n "${tail_lines}" -f)
+      journalctl "${args[@]}"
+      ;;
+    launchd)
+      local out_log="${OMNILUX_OUT_LOG:-${OMNILUX_DATA_DIR:-${HOME}/Library/Application Support/OmniLux/data}/logs/omnilux.out.log}"
+      local err_log="${OMNILUX_ERR_LOG:-${OMNILUX_DATA_DIR:-${HOME}/Library/Application Support/OmniLux/data}/logs/omnilux.err.log}"
+      if [[ "${follow}" == "1" ]]; then
+        tail -n "${tail_lines}" -f "${out_log}" "${err_log}"
+      else
+        printf '==> %s <==\n' "${out_log}"
+        tail -n "${tail_lines}" "${out_log}" 2>/dev/null || true
+        printf '\n==> %s <==\n' "${err_log}"
+        tail -n "${tail_lines}" "${err_log}" 2>/dev/null || true
+      fi
+      ;;
+    docker)
+      if [[ "${follow}" == "1" ]]; then
+        if ! run_compose logs -f --tail "${tail_lines}" "${COMPOSE_SERVICE}" 2>/dev/null; then
+          docker logs -f --tail "${tail_lines}" "${CONTAINER_NAME}"
+        fi
+      else
+        if ! run_compose logs --tail "${tail_lines}" "${COMPOSE_SERVICE}" 2>/dev/null; then
+          docker logs --tail "${tail_lines}" "${CONTAINER_NAME}"
+        fi
+      fi
+      ;;
+    *)
+      error "No supported log source was detected."
+      exit 1
+      ;;
+  esac
+}
+
+command_media() {
+  local body_file status_code
+  printf 'Media root: %s\n' "${OMNILUX_LIBRARY_ROOT:-${OMNILUX_MEDIA_DIR:-/data}}"
+  body_file="$(mktemp)"
+  status_code="$(curl_api_status '/api/library/scan/status' "${body_file}")"
+  if [[ "${status_code}" == "200" ]]; then
+    printf 'Library scan status:\n'
+    json_summary < "${body_file}" | sed 's/^/  /'
+    printf '\n'
+  elif [[ "${status_code}" == "401" || "${status_code}" == "403" ]]; then
+    warn "Media API requires an admin token. Set OMNILUX_API_TOKEN to show scan state."
+  elif [[ "${status_code}" == "000" ]]; then
+    warn "Runtime API is not reachable."
+  else
+    warn "Media API returned HTTP ${status_code}."
+  fi
+  rm -f "${body_file}"
+}
+
+command_connect() {
+  local body_file status_code
+  printf 'Cloud API: %s\n' "${OMNILUX_CLOUD_URL:-${SUPABASE_URL:-https://api.omnilux.tv}}"
+  printf 'Cloud app: %s\n' "${OMNILUX_CLOUD_APP_URL:-https://app.omnilux.tv}"
+  printf 'Relay URL: %s\n' "${OMNILUX_RELAY_URL:-wss://relay.omnilux.tv/ws/server}"
+  body_file="$(mktemp)"
+  status_code="$(curl_api_status '/api/server/relay-status' "${body_file}")"
+  if [[ "${status_code}" == "200" ]]; then
+    printf 'Relay status:\n'
+    json_summary < "${body_file}" | sed 's/^/  /'
+    printf '\n'
+  elif [[ "${status_code}" == "000" ]]; then
+    warn "Runtime API is not reachable."
+  else
+    warn "Relay status endpoint returned HTTP ${status_code}."
+  fi
+  rm -f "${body_file}"
+  printf 'To link this server, sign in to the local web UI and open Settings > Cloud Connection.\n'
+}
+
+main() {
+  load_env_file
+
+  local command="${1:-help}"
+  shift || true
+
+  case "${command}" in
+    -h|--help|help)
+      usage
+      ;;
+    status)
+      command_status
+      ;;
+    restart)
+      command_restart
+      ;;
+    services)
+      command_services
+      ;;
+    plugins)
+      command_plugins
+      ;;
+    auth)
+      command_auth
+      ;;
+    update)
+      local run_update=0
+      while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+          --run) run_update=1 ;;
+          --check) run_update=0 ;;
+          -h|--help) printf 'Usage: omnilux update [--check] [--run]\n'; return ;;
+          *) die_usage "Unknown update option: $1" ;;
+        esac
+        shift
+      done
+      command_update "${run_update}"
+      ;;
+    logs)
+      local follow=0 tail_lines=100
+      while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+          -f|--follow) follow=1 ;;
+          --tail)
+            shift
+            [[ "$#" -gt 0 ]] || die_usage "--tail requires a line count"
+            tail_lines="$1"
+            ;;
+          -h|--help) printf 'Usage: omnilux logs [--tail <lines>] [--follow]\n'; return ;;
+          *) die_usage "Unknown logs option: $1" ;;
+        esac
+        shift
+      done
+      command_logs "${follow}" "${tail_lines}"
+      ;;
+    media)
+      command_media
+      ;;
+    connect)
+      command_connect
+      ;;
+    *)
+      die_usage "Unknown command: ${command}"
+      ;;
+  esac
+}
+
+main "$@"

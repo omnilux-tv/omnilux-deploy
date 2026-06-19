@@ -32,6 +32,7 @@ Self-hosted setup:
 - Universal Docker/image path: [`docs/self-hosted-setup.md`](docs/self-hosted-setup.md)
 - Bare-metal Linux native service path: [`docs/bare-metal-linux.md`](docs/bare-metal-linux.md)
 - Bare-metal macOS user service path: [`docs/bare-metal-macos.md`](docs/bare-metal-macos.md)
+- Runtime management CLI: [`docs/runtime-cli.md`](docs/runtime-cli.md)
 - Optional compose env template: [`env/example.env`](env/example.env)
 
 This repo contains the canonical self-hosted deploy assets that previously lived in `../omnilux/`:
@@ -60,6 +61,7 @@ Current deployment notes:
 - `scripts/deploy.sh`, `scripts/deploy.example.sh`, `scripts/install.sh`, `docker-compose.truenas.yml`, and the `docker/` compose bundle deploy published images and do not require product source on the target host.
 - `scripts/install/install-linux.sh` is the supported bare-metal Linux path. It extracts the published runtime image from GHCR and installs it as a native `systemd` service without Docker or source repository access.
 - `scripts/install/install-macos.sh` is the supported bare-metal macOS path. It installs a Darwin-built runtime tarball as a user-level `launchd` service without Docker or source repository access.
+- `scripts/omnilux` is the post-install runtime management CLI installed by the supported Docker, Linux, and macOS installers.
 - `scripts/install/install-windows.ps1` and `scripts/install/setup.sh` are retired source-build paths that point users back to the supported image-based flows.
 
 Explicitly not copied in this pass:

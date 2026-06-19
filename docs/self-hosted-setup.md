@@ -6,6 +6,7 @@ Universal steps for any Docker host. Official compose contracts live in this rep
 
 - **Published image:** `ghcr.io/omnilux-tv/omnilux` (tags such as `latest` or a release tag). Built from `omnilux` via [docker-publish workflow](https://github.com/omnilux-tv/omnilux/blob/main/.github/workflows/docker-publish.yml) on pushes to `main` and version tags.
 - **Compose:** use `docker-compose.truenas.yml` for GPU / DLNA / updater sidecar patterns, or `scripts/install.sh` for a minimal single-container layout under `~/.omnilux`.
+- **CLI:** use [`omnilux`](runtime-cli.md) after installation for status, restart, services, plugins, auth, updates, logs, media, and cloud connection checks.
 
 ## 2. Registry access (required if pulls fail with `unauthorized`)
 
@@ -42,11 +43,20 @@ If you enable the updater sidecar, set `OMNILUX_UPDATER_TOKEN` to a long random 
 
 Health: `GET http://<host>:<mapped-port>/api/health` (default TrueNAS mapping in the contract file is `38400:4000`).
 
+After a `scripts/install.sh` install, use:
+
+```bash
+omnilux status
+omnilux logs --follow
+omnilux restart
+```
+
 ## 5. Stay on a current image
 
 After registry access works:
 
 ```bash
+omnilux update --run
 docker compose -f docker-compose.truenas.yml pull omnilux
 docker compose -f docker-compose.truenas.yml up -d omnilux omnilux-updater
 ```

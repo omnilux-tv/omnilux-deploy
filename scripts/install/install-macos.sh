@@ -13,12 +13,15 @@ OMNILUX_ARTIFACT_URL="${OMNILUX_ARTIFACT_URL:-}"
 OMNILUX_ARTIFACT_FILE="${OMNILUX_ARTIFACT_FILE:-}"
 OMNILUX_INSTALL_ROOT="${OMNILUX_INSTALL_ROOT:-}"
 OMNILUX_SERVICE_LABEL="${OMNILUX_SERVICE_LABEL:-tv.omnilux.server}"
+OMNILUX_MENU_BAR_LABEL="${OMNILUX_MENU_BAR_LABEL:-tv.omnilux.menubar}"
 OMNILUX_PORT="${OMNILUX_PORT:-4000}"
 OMNILUX_START_SERVICE="${OMNILUX_START_SERVICE:-1}"
+OMNILUX_START_MENU_BAR="${OMNILUX_START_MENU_BAR:-${OMNILUX_START_SERVICE}}"
 OMNILUX_SKIP_DEPENDENCIES="${OMNILUX_SKIP_DEPENDENCIES:-0}"
 OMNILUX_SKIP_NODE_SETUP="${OMNILUX_SKIP_NODE_SETUP:-0}"
 OMNILUX_SKIP_NODE_CHECK="${OMNILUX_SKIP_NODE_CHECK:-0}"
 OMNILUX_PUBLIC_ORIGIN="${OMNILUX_PUBLIC_ORIGIN:-}"
+OMNILUX_CLI_URL="${OMNILUX_CLI_URL:-https://raw.githubusercontent.com/omnilux-tv/omnilux-deploy/main/scripts/omnilux}"
 TMDB_API_KEY="${TMDB_API_KEY:-}"
 
 if [[ -n "${OMNILUX_INSTALL_ROOT}" ]]; then
@@ -28,6 +31,8 @@ if [[ -n "${OMNILUX_INSTALL_ROOT}" ]]; then
   OMNILUX_PLUGINS_DIR="${OMNILUX_PLUGINS_DIR:-${OMNILUX_INSTALL_ROOT}/Library/Application Support/OmniLux/plugins}"
   OMNILUX_MEDIA_DIR="${OMNILUX_MEDIA_DIR:-${OMNILUX_INSTALL_ROOT}/Movies/OmniLux}"
   OMNILUX_LAUNCH_AGENT_DIR="${OMNILUX_LAUNCH_AGENT_DIR:-${OMNILUX_INSTALL_ROOT}/Library/LaunchAgents}"
+  OMNILUX_CLI_DIR="${OMNILUX_CLI_DIR:-${OMNILUX_INSTALL_ROOT}/.local/bin}"
+  OMNILUX_APPLICATIONS_DIR="${OMNILUX_APPLICATIONS_DIR:-${OMNILUX_INSTALL_ROOT}/Applications}"
 else
   OMNILUX_APP_DIR="${OMNILUX_APP_DIR:-${HOME}/Library/Application Support/OmniLux/runtime}"
   OMNILUX_CONFIG_DIR="${OMNILUX_CONFIG_DIR:-${HOME}/Library/Application Support/OmniLux}"
@@ -35,12 +40,21 @@ else
   OMNILUX_PLUGINS_DIR="${OMNILUX_PLUGINS_DIR:-${HOME}/Library/Application Support/OmniLux/plugins}"
   OMNILUX_MEDIA_DIR="${OMNILUX_MEDIA_DIR:-${HOME}/Movies/OmniLux}"
   OMNILUX_LAUNCH_AGENT_DIR="${OMNILUX_LAUNCH_AGENT_DIR:-${HOME}/Library/LaunchAgents}"
+  OMNILUX_CLI_DIR="${OMNILUX_CLI_DIR:-${HOME}/.local/bin}"
+  OMNILUX_APPLICATIONS_DIR="${OMNILUX_APPLICATIONS_DIR:-/Applications}"
 fi
 
 ENV_FILE="${OMNILUX_CONFIG_DIR}/omnilux.env"
 INSTALL_METADATA_FILE="${OMNILUX_CONFIG_DIR}/install.json"
 PLIST_FILE="${OMNILUX_LAUNCH_AGENT_DIR}/${OMNILUX_SERVICE_LABEL}.plist"
+MENU_BAR_PLIST_FILE="${OMNILUX_LAUNCH_AGENT_DIR}/${OMNILUX_MENU_BAR_LABEL}.plist"
 NODE_BIN="${OMNILUX_NODE_BIN:-}"
+OMNILUX_CLI_PATH="${OMNILUX_CLI_PATH:-${OMNILUX_CLI_DIR}/omnilux}"
+OMNILUX_MACOS_APP_NAME="${OMNILUX_MACOS_APP_NAME:-OmniLux.app}"
+OMNILUX_PACKAGED_MACOS_APP="${OMNILUX_APP_DIR}/${OMNILUX_MACOS_APP_NAME}"
+OMNILUX_INSTALLED_MACOS_APP="${OMNILUX_APPLICATIONS_DIR}/${OMNILUX_MACOS_APP_NAME}"
+OMNILUX_MENU_BAR_APP="${OMNILUX_MENU_BAR_APP:-${OMNILUX_INSTALLED_MACOS_APP}}"
+OMNILUX_MENU_BAR_EXECUTABLE="${OMNILUX_MENU_BAR_APP}/Contents/MacOS/OmniLuxMenuBar"
 
 info() { printf '\033[1;34m[info]\033[0m  %s\n' "$*"; }
 ok() { printf '\033[1;32m[ok]\033[0m    %s\n' "$*"; }
@@ -62,12 +76,15 @@ Environment overrides:
   OMNILUX_DATA_DIR=${OMNILUX_DATA_DIR}
   OMNILUX_PLUGINS_DIR=${OMNILUX_PLUGINS_DIR}
   OMNILUX_MEDIA_DIR=${OMNILUX_MEDIA_DIR}
+  OMNILUX_CLI_PATH=${OMNILUX_CLI_PATH}
+  OMNILUX_APPLICATIONS_DIR=${OMNILUX_APPLICATIONS_DIR}
   OMNILUX_PORT=${OMNILUX_PORT}
   OMNILUX_PUBLIC_ORIGIN=${OMNILUX_PUBLIC_ORIGIN:-}
   OMNILUX_NODE_BIN=${NODE_BIN:-auto}
   OMNILUX_SKIP_DEPENDENCIES=1         # skip Homebrew dependency installation
   OMNILUX_SKIP_NODE_SETUP=1           # require an existing Node ${NODE_MAJOR}.x
   OMNILUX_START_SERVICE=0             # install files only, do not start launchd
+  OMNILUX_START_MENU_BAR=0            # install files only, do not start menu bar app
 
 The installer downloads a Darwin-built OmniLux runtime tarball, installs it
 under the current user's Library directory, and manages it as a user launchd
@@ -311,6 +328,7 @@ install_runtime_artifact() {
   previous_dir="${OMNILUX_APP_DIR}.previous"
 
   if [[ -e "${OMNILUX_APP_DIR}" ]]; then
+    stop_menu_bar_agent || true
     stop_service || true
     rm -rf "${previous_dir}"
     mv "${OMNILUX_APP_DIR}" "${previous_dir}"
@@ -323,6 +341,7 @@ install_runtime_artifact() {
   "arch": "${arch}",
   "installedAt": "${timestamp}",
   "runtimeDir": "${OMNILUX_APP_DIR}",
+  "macOSApp": "${OMNILUX_INSTALLED_MACOS_APP}",
   "previousRuntimeDir": "${previous_dir}"
 }
 EOF
@@ -422,12 +441,104 @@ EOF
   ok "LaunchAgent installed at ${PLIST_FILE}"
 }
 
+install_macos_app() {
+  if [[ ! -d "${OMNILUX_PACKAGED_MACOS_APP}" ]]; then
+    warn "macOS app bundle was not found in the runtime artifact; skipping Applications install."
+    return
+  fi
+
+  mkdir -p "${OMNILUX_APPLICATIONS_DIR}"
+  if [[ ! -w "${OMNILUX_APPLICATIONS_DIR}" ]]; then
+    die "Cannot write to ${OMNILUX_APPLICATIONS_DIR}. Run from an admin user or set OMNILUX_APPLICATIONS_DIR to a writable Applications folder."
+  fi
+
+  stop_menu_bar_agent || true
+  rm -rf "${OMNILUX_INSTALLED_MACOS_APP}"
+  ditto "${OMNILUX_PACKAGED_MACOS_APP}" "${OMNILUX_INSTALLED_MACOS_APP}"
+  ok "OmniLux app installed at ${OMNILUX_INSTALLED_MACOS_APP}"
+}
+
+write_menu_bar_launch_agent() {
+  if [[ ! -x "${OMNILUX_MENU_BAR_EXECUTABLE}" ]]; then
+    warn "macOS menu bar helper was not found in the runtime artifact; skipping menu bar LaunchAgent."
+    return
+  fi
+
+  cat > "${MENU_BAR_PLIST_FILE}" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$(plist_string "${OMNILUX_MENU_BAR_LABEL}")</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$(plist_string "${OMNILUX_MENU_BAR_EXECUTABLE}")</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>OMNILUX_RUNTIME_URL</key>
+    <string>$(plist_string "http://127.0.0.1:${OMNILUX_PORT}")</string>
+    <key>PORT</key>
+    <string>$(plist_string "${OMNILUX_PORT}")</string>
+    <key>OMNILUX_SERVICE_LABEL</key>
+    <string>$(plist_string "${OMNILUX_SERVICE_LABEL}")</string>
+    <key>OMNILUX_SERVER_PLIST_FILE</key>
+    <string>$(plist_string "${PLIST_FILE}")</string>
+    <key>OMNILUX_CLI_PATH</key>
+    <string>$(plist_string "${OMNILUX_CLI_PATH}")</string>
+    <key>OMNILUX_OUT_LOG</key>
+    <string>$(plist_string "${OMNILUX_DATA_DIR}/logs/omnilux.out.log")</string>
+    <key>OMNILUX_ERR_LOG</key>
+    <string>$(plist_string "${OMNILUX_DATA_DIR}/logs/omnilux.err.log")</string>
+    <key>OMNILUX_LAUNCH_MODE</key>
+    <string>menubar</string>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>$(plist_string "${OMNILUX_APPLICATIONS_DIR}")</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>LimitLoadToSessionType</key>
+  <string>Aqua</string>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+</dict>
+</plist>
+EOF
+  chmod 0644 "${MENU_BAR_PLIST_FILE}"
+  ok "Menu bar LaunchAgent installed at ${MENU_BAR_PLIST_FILE}"
+}
+
+install_cli() {
+  local cli_source
+  cli_source="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || true)/omnilux"
+
+  install -d -m 0755 "$(dirname "${OMNILUX_CLI_PATH}")"
+  if [[ -f "${cli_source}" ]]; then
+    install -m 0755 "${cli_source}" "${OMNILUX_CLI_PATH}"
+  else
+    curl -fsSL "${OMNILUX_CLI_URL}" -o "${OMNILUX_CLI_PATH}"
+    chmod 0755 "${OMNILUX_CLI_PATH}"
+  fi
+
+  ok "OmniLux CLI installed at ${OMNILUX_CLI_PATH}"
+  case ":${PATH}:" in
+    *":$(dirname "${OMNILUX_CLI_PATH}"):"*) ;;
+    *) warn "$(dirname "${OMNILUX_CLI_PATH}") is not in PATH. Add it to your shell profile to run: omnilux" ;;
+  esac
+}
+
 launchd_domain() {
   printf 'gui/%s' "$(id -u)"
 }
 
 stop_service() {
   launchctl bootout "$(launchd_domain)" "${PLIST_FILE}" >/dev/null 2>&1 || true
+}
+
+stop_menu_bar_agent() {
+  launchctl bootout "$(launchd_domain)" "${MENU_BAR_PLIST_FILE}" >/dev/null 2>&1 || true
 }
 
 start_and_check_service() {
@@ -461,15 +572,48 @@ start_and_check_service() {
   exit 1
 }
 
+start_menu_bar_agent() {
+  if [[ "${OMNILUX_START_MENU_BAR}" != "1" ]]; then
+    warn "Skipping menu bar app start because OMNILUX_START_MENU_BAR=${OMNILUX_START_MENU_BAR}"
+    return
+  fi
+
+  if [[ -n "${OMNILUX_INSTALL_ROOT}" ]]; then
+    warn "Skipping menu bar app start because OMNILUX_INSTALL_ROOT is set."
+    return
+  fi
+
+  if [[ ! -x "${OMNILUX_MENU_BAR_EXECUTABLE}" || ! -f "${MENU_BAR_PLIST_FILE}" ]]; then
+    warn "Menu bar app is not installed; skipping menu bar app start."
+    return
+  fi
+
+  info "Starting ${OMNILUX_MENU_BAR_LABEL} with launchd..."
+  stop_menu_bar_agent
+  launchctl bootstrap "$(launchd_domain)" "${MENU_BAR_PLIST_FILE}"
+  launchctl enable "$(launchd_domain)/${OMNILUX_MENU_BAR_LABEL}" >/dev/null 2>&1 || true
+  launchctl kickstart -k "$(launchd_domain)/${OMNILUX_MENU_BAR_LABEL}" >/dev/null 2>&1 || true
+  ok "OmniLux menu bar app is running"
+}
+
 check_installation() {
   detect_macos
   test -x "${OMNILUX_APP_DIR}/bin/omnilux-runtime" || die "Runtime launcher missing at ${OMNILUX_APP_DIR}/bin/omnilux-runtime"
+  test -d "${OMNILUX_INSTALLED_MACOS_APP}" || die "OmniLux app missing at ${OMNILUX_INSTALLED_MACOS_APP}"
+  test -f "${OMNILUX_INSTALLED_MACOS_APP}/Contents/Resources/OmniLux.icns" || die "OmniLux app icon missing at ${OMNILUX_INSTALLED_MACOS_APP}/Contents/Resources/OmniLux.icns"
   test -f "${ENV_FILE}" || die "Environment file missing at ${ENV_FILE}"
   test -f "${PLIST_FILE}" || die "LaunchAgent missing at ${PLIST_FILE}"
+  if [[ -x "${OMNILUX_MENU_BAR_EXECUTABLE}" ]]; then
+    test -f "${MENU_BAR_PLIST_FILE}" || die "Menu bar LaunchAgent missing at ${MENU_BAR_PLIST_FILE}"
+  fi
 
   if [[ "${OMNILUX_START_SERVICE}" == "1" && -z "${OMNILUX_INSTALL_ROOT}" ]]; then
     launchctl print "$(launchd_domain)/${OMNILUX_SERVICE_LABEL}" >/dev/null
     curl -fsS "http://127.0.0.1:${OMNILUX_PORT}/api/health" >/dev/null
+  fi
+
+  if [[ "${OMNILUX_START_MENU_BAR}" == "1" && -z "${OMNILUX_INSTALL_ROOT}" && -f "${MENU_BAR_PLIST_FILE}" ]]; then
+    launchctl print "$(launchd_domain)/${OMNILUX_MENU_BAR_LABEL}" >/dev/null
   fi
 
   ok "Bare-metal macOS installation checks passed"
@@ -486,7 +630,11 @@ install_or_upgrade() {
   install_runtime_artifact
   write_env_file
   write_launch_agent
+  install_macos_app
+  write_menu_bar_launch_agent
+  install_cli
   start_and_check_service
+  start_menu_bar_agent
 }
 
 main() {

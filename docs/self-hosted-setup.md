@@ -83,7 +83,7 @@ sudo docker pull "${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}"
 sudo docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d omnilux --force-recreate
 ```
 
-A small wrapper that automates this (including syncing `ghcr.io` credentials for `sudo docker`) lives in a **personal** infra repo as `scripts/truenas-refresh-omnilux.sh` in the OmniLux workspace notes; the commands above are the same idea without that script.
+For repeat updates, keep the same inspected compose file and project name in your own host notes or automation. Do not edit the rendered TrueNAS compose file directly.
 
 ## 6. Related scripts
 

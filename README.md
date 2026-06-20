@@ -62,7 +62,7 @@ Current deployment notes:
 - `scripts/install/install-linux.sh` is the supported bare-metal Linux path. It extracts the published runtime image from GHCR and installs it as a native `systemd` service without Docker or source repository access.
 - `scripts/install/install-macos.sh` is the supported bare-metal macOS path. It installs a Darwin-built runtime tarball as a user-level `launchd` service without Docker or source repository access.
 - `scripts/omnilux` is the post-install runtime management CLI installed by the supported Docker, Linux, and macOS installers.
-- `scripts/install/install-windows.ps1` and `scripts/install/setup.sh` are retired source-build paths that point users back to the supported image-based flows.
+- `scripts/install/install-windows.ps1` and `scripts/install/setup.sh` are retired legacy paths that point users back to the supported image-based flows.
 
 Explicitly not copied in this pass:
 
@@ -88,7 +88,7 @@ Runtime deploy assumptions:
   - `OMNILUX_DEPLOYMENT_PROFILE=self-hosted` for normal customer installs
 - `OMNILUX_PUBLIC_ORIGIN`, `OMNILUX_CLOUD_APP_URL`, and `OMNILUX_ALLOWED_ORIGINS` let the self-hosted runtime image declare the correct public hostname and browser origins.
 - `scripts/deploy.sh` and `scripts/deploy.example.sh` sync only deploy-owned assets and then pull the selected image tag on the target host.
-- `docker/docker-compose.yml` and `docker/docker-compose.example.yml` are local image-based examples, not source-build inputs.
+- `docker/docker-compose.yml` and `docker/docker-compose.example.yml` are local image-based examples, not legacy build inputs.
 - `scripts/install/install-linux.sh` is image-based but not Docker-based: it downloads the public image layers through the OCI registry API, extracts `/app`, and runs the built runtime with host Node.js under `systemd`.
 - `scripts/install/install-macos.sh` is artifact-based and not Docker-based: it downloads a public Darwin tarball such as `omnilux-darwin-arm64.tar.gz`, installs it under the current user's `~/Library/Application Support/OmniLux`, and runs it with `launchd`.
 - installed plugins must persist across recreates, so the deploy contract now binds `/app/plugins` and sets `OMNILUX_PLUGINS_DIR=/app/plugins`
@@ -101,4 +101,4 @@ Image publishing ownership:
 - `ghcr.io/omnilux-tv/omnilux` is published from `../omnilux/.github/workflows/docker-publish.yml`.
 - This repo remains deploy-only and should not own product image publishing.
 
-Pulling that image on any host requires registry access GitHub allows for the package: either the package is **public** (anonymous `docker pull` and anonymous OCI layer download work) or the host runs **`docker login ghcr.io`** with credentials that have **`read:packages`**. Personal host paths, TrueNAS app fields, and machine-specific compose overrides belong outside this repo (for example a private `omnilux-infra` checkout), not in `omnilux-deploy`.
+Pulling that image on any host requires registry access GitHub allows for the package: either the package is **public** (anonymous `docker pull` and anonymous OCI layer download work) or the host runs **`docker login ghcr.io`** with credentials that have **`read:packages`**. Host-specific paths, TrueNAS app fields, and machine-specific compose overrides belong outside this repo, not in `omnilux-deploy`.

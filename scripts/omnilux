@@ -488,13 +488,13 @@ print_update_api_status() {
 const fs = require('node:fs');
 const payload = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 console.log('Runtime update status:');
-console.log(`  state: ${payload.status?.state || 'unknown'}`);
-console.log(`  current: ${payload.version?.current || payload.status?.version || 'unknown'}`);
-if (payload.version?.latest) console.log(`  latest: ${payload.version.latest}`);
-console.log(`  updateAvailable: ${payload.version?.updateAvailable ? 'yes' : 'no'}`);
-console.log(`  canApplyInApp: ${payload.canApply ? 'yes' : 'no'}`);
-console.log(`  message: ${payload.message || payload.status?.message || 'No update message returned.'}`);
-if (payload.version?.releaseUrl) console.log(`  releaseUrl: ${payload.version.releaseUrl}`);
+console.log(`  State: ${payload.status?.state || 'unknown'}`);
+console.log(`  Installed version: ${payload.version?.current || payload.status?.version || 'unknown'}`);
+if (payload.version?.latest) console.log(`  Latest version: ${payload.version.latest}`);
+console.log(`  Update available: ${payload.version?.updateAvailable ? 'yes' : 'no'}`);
+console.log(`  Web updater available: ${payload.canApply ? 'yes' : 'no'}`);
+console.log(`  Message: ${payload.message || payload.status?.message || 'No update message returned.'}`);
+if (payload.version?.releaseUrl) console.log(`  Release notes: ${payload.version.releaseUrl}`);
 NODE
     else
       cat "${body_file}"
@@ -532,7 +532,7 @@ command_update() {
           exit 1
         fi
       else
-        printf 'Docker update path detected.\n'
+        printf 'Docker install detected.\n'
         printf 'Run: omnilux update --run\n'
         printf 'This will pull the configured image and recreate the %s service.\n' "${COMPOSE_SERVICE}"
       fi
@@ -543,9 +543,9 @@ command_update() {
         info "Running native Linux updater from ${installer_url}..."
         curl -fsSL "${installer_url}" | sudo_or_run env OMNILUX_START_SERVICE=1 bash -s -- upgrade
       else
-        printf 'Native Linux update path detected.\n'
+        printf 'Native Linux install detected.\n'
         printf 'Run: omnilux update --run\n'
-        printf 'This reruns the official image-based Linux installer in upgrade mode.\n'
+        printf 'This runs the official Linux installer in upgrade mode.\n'
       fi
       ;;
     launchd)
@@ -554,9 +554,9 @@ command_update() {
         info "Running native macOS updater from ${installer_url}..."
         curl -fsSL "${installer_url}" | bash -s -- upgrade
       else
-        printf 'Native macOS update path detected.\n'
+        printf 'Native macOS install detected.\n'
         printf 'Run: omnilux update --run\n'
-        printf 'This reruns the official artifact-based macOS installer in upgrade mode.\n'
+        printf 'This runs the official macOS installer in upgrade mode.\n'
       fi
       ;;
     *)

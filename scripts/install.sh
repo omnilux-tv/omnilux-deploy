@@ -13,13 +13,10 @@ CLI_PATH="${OMNILUX_CLI_PATH:-$HOME/.local/bin/omnilux}"
 
 cat << 'BANNER'
 
-   ██████╗██╗      █████╗ ██╗    ██╗██████╗ ██╗   ██╗███████╗████████╗███████╗██████╗
-  ██╔════╝██║     ██╔══██╗██║    ██║██╔══██╗██║   ██║██╔════╝╚══██╔══╝██╔════╝██╔══██╗
-  ██║     ██║     ███████║██║ █╗ ██║██████╔╝██║   ██║███████╗   ██║   █████╗  ██████╔╝
-  ██║     ██║     ██╔══██║██║███╗██║██╔══██╗██║   ██║╚════██║   ██║   ██╔══╝  ██╔══██╗
-  ╚██████╗███████╗██║  ██║╚███╔███╔╝██████╔╝╚██████╔╝███████║   ██║   ███████╗██║  ██║
-   ╚═════╝╚══════╝╚═╝  ╚═╝ ╚══╝╚══╝ ╚═════╝  ╚═════╝ ╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝
-  All-in-one media automation platform
+  OmniLux
+  Self-hosted media runtime
+
+  Official Docker installer for the OmniLux self-hosted server
 BANNER
 
 info()  { printf "\033[1;34m[info]\033[0m  %s\n" "$*"; }
@@ -126,7 +123,7 @@ EOF
 start_container() {
   info "Pulling latest image..."
   if ! $SUDO docker compose -f "$INSTALL_DIR/docker-compose.yml" --env-file "$INSTALL_DIR/.env" pull; then
-    die "Image pull failed (often 'unauthorized' for ghcr.io). Run: echo TOKEN | docker login ghcr.io -u GITHUB_USER --password-stdin (PAT needs read:packages), or use a public ghcr.io/omnilux-tv/omnilux package. Doc: https://github.com/omnilux-tv/omnilux-deploy/blob/main/docs/self-hosted-setup.md"
+    die "Image pull failed. Make sure this host can access the OmniLux runtime image, then run docker login ghcr.io if registry authentication is required. Setup guide: https://github.com/omnilux-tv/omnilux-deploy/blob/main/docs/self-hosted-setup.md"
   fi
 
   info "Starting OmniLux..."

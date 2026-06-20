@@ -29,7 +29,18 @@ The runtime needs durable host paths for:
 
 `docker-compose.truenas.yml` maps those via **`OMNILUX_STORAGE_ROOT`** (data + plugins + updater `repo` sibling layout) and **`OMNILUX_MEDIA_ROOT`**. Override the defaults with environment variables so they match **your** disks. See `env/example.env` for the full list of substitution variables.
 
-## 4. Bring the stack up
+## 4. Container hardening defaults
+
+The official Docker and TrueNAS Compose contracts set `security_opt:
+no-new-privileges:true`. Keep that enabled in host-specific overrides unless you
+have tested a specific platform feature that requires changing it.
+
+The TrueNAS contract still grants `NET_ADMIN`, GPU devices, and a private
+updater sidecar with Docker socket access because those are platform features of
+that profile. Do not copy those permissions into the minimal Docker contract
+unless you are enabling the matching feature and have a host-local rollback plan.
+
+## 5. Bring the stack up
 
 From the directory that contains your compose file (and `updater/` if you use `omnilux-updater`):
 
@@ -51,7 +62,7 @@ omnilux logs --follow
 omnilux restart
 ```
 
-## 5. Stay on a current image
+## 6. Stay on a current image
 
 After registry access works:
 
@@ -85,7 +96,7 @@ sudo docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d omnilux --for
 
 For repeat updates, keep the same inspected compose file and project name in your own host notes or automation. Do not edit the rendered TrueNAS compose file directly.
 
-## 6. Related scripts
+## 7. Related scripts
 
 - `scripts/deploy.sh` — rsync this deploy repo to a remote host and pull/recreate (adjust `REMOTE`, `REMOTE_REPO_PATH`, `OMNILUX_IMAGE` in the environment as needed).
 - `scripts/install.sh` — minimal local install under `~/.omnilux`.

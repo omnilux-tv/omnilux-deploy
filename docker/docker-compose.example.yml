@@ -14,6 +14,8 @@ services:
     ports:
       - "4000:4000"          # Web UI + API
       - "1900:1900/udp"      # DLNA/SSDP discovery
+    security_opt:
+      - no-new-privileges:true
     environment:
       NODE_ENV: production
       PORT: 4000

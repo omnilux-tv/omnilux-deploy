@@ -90,6 +90,8 @@ services:
     ports:
       - "${PORT:-4000}:4000"
       - "1900:1900/udp"
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - omnilux-data:/app/data
       - omnilux-plugins:/app/plugins
@@ -107,6 +109,11 @@ services:
         limits:
           memory: 2G
           cpus: "2.0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4000/api/health"]
       interval: 30s

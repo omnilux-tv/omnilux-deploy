@@ -18,28 +18,31 @@ spec:
       labels:
         {{- include "omnilux.labels" . | nindent 8 }}
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        {{- if .Values.vpn.enabled }}
+        sysctls:
+          - name: net.ipv6.conf.all.disable_ipv6
+            value: "1"
+        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "omnilux.serviceAccountName" . }}
-      {{- if .Values.vpn.enabled }}
-      securityContext:
-        sysctls:
-          - name: net.ipv6.conf.all.disable_ipv6
-            value: "1"
-      {{- end }}
       containers:
         # ── Main OmniLux container ──────────────────────────────────
         - name: omnilux
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- if .Values.vpn.enabled }}
           securityContext:
+            allowPrivilegeEscalation: false
+            {{- if .Values.vpn.enabled }}
             capabilities:
               add:
                 - NET_ADMIN
-          {{- end }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 4000

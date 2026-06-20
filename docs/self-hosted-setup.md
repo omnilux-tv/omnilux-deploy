@@ -35,22 +35,39 @@ The official Docker and TrueNAS Compose contracts set `security_opt:
 no-new-privileges:true`. Keep that enabled in host-specific overrides unless you
 have tested a specific platform feature that requires changing it.
 
-The TrueNAS contract still grants `NET_ADMIN`, GPU devices, and a private
-updater sidecar with Docker socket access because those are platform features of
-that profile. Do not copy those permissions into the minimal Docker contract
-unless you are enabling the matching feature and have a host-local rollback plan.
+The TrueNAS contract still grants `NET_ADMIN` and GPU devices to the main
+runtime because those are platform features of that profile. Do not copy those
+permissions into the minimal Docker contract unless you are enabling the
+matching feature and have a host-local rollback plan.
+
+The `omnilux-updater` sidecar is more sensitive because it mounts
+`/var/run/docker.sock`. It is now opt-in behind the Compose `updater` profile.
+Leave that profile disabled unless you need web-triggered updates. If you enable
+it, set `OMNILUX_UPDATER_URL=http://omnilux-updater:4050` and a long random
+`OMNILUX_UPDATER_TOKEN`; rotate the token when operator access changes.
 
 ## 5. Bring the stack up
 
-From the directory that contains your compose file (and `updater/` if you use `omnilux-updater`):
+From the directory that contains your compose file:
 
 ```bash
 docker login ghcr.io   # if required (see §2)
-docker compose -f docker-compose.truenas.yml pull omnilux omnilux-updater
+docker compose -f docker-compose.truenas.yml pull omnilux
 docker compose -f docker-compose.truenas.yml up -d --build
 ```
 
-If you enable the updater sidecar, set `OMNILUX_UPDATER_TOKEN` to a long random value and pass the same value to both services. Leaving it unset disables the updater control API; it does not create an unauthenticated updater.
+If you enable the updater sidecar, include the profile and pass the same token to
+both services:
+
+```bash
+COMPOSE_PROFILES=updater \
+OMNILUX_UPDATER_URL=http://omnilux-updater:4050 \
+OMNILUX_UPDATER_TOKEN=<long-random-token> \
+  docker compose -f docker-compose.truenas.yml up -d --build
+```
+
+Leaving `OMNILUX_UPDATER_TOKEN` unset disables the updater control API; it does
+not create an unauthenticated updater.
 
 Health: `GET http://<host>:<mapped-port>/api/health` (default TrueNAS mapping in the contract file is `38400:4000`).
 
@@ -69,7 +86,7 @@ After registry access works:
 ```bash
 omnilux update --run
 docker compose -f docker-compose.truenas.yml pull omnilux
-docker compose -f docker-compose.truenas.yml up -d omnilux omnilux-updater
+docker compose -f docker-compose.truenas.yml up -d omnilux
 ```
 
 Pin **`OMNILUX_IMAGE`** to a specific tag or digest if you want upgrades to be explicit instead of following `latest`.

@@ -158,11 +158,9 @@ fi
 echo "==> Recreating OmniLux server..."
 if [ "$LOCAL_BUILD" = true ]; then
   if [[ -n "${IX_COMPOSE_FILE}" ]]; then
-    inv=$(compose_ix_local_override)
-    ssh_q "cd '${REMOTE_REPO}' && OMNILUX_IMAGE='${OMNILUX_IMAGE}' ${REMOTE_DOCKER} compose ${inv} up -d --force-recreate omnilux omnilux-updater" \
-      || ssh_q "cd '${REMOTE_REPO}' && OMNILUX_IMAGE='${OMNILUX_IMAGE}' ${REMOTE_DOCKER} compose ${inv} up -d --force-recreate omnilux"
+    remote_compose_up_recreate "$(compose_ix_local_override)"
   else
-    ssh_q "cd '${REMOTE_REPO}' && OMNILUX_IMAGE='${OMNILUX_IMAGE}' ${REMOTE_DOCKER} compose $(compose_local_build_files) up -d --build --force-recreate omnilux omnilux-updater"
+    remote_compose_up_recreate "$(compose_local_build_files)"
   fi
 else
   if [[ -n "${IX_COMPOSE_FILE}" ]]; then

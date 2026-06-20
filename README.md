@@ -86,6 +86,10 @@ Runtime deploy assumptions:
   `omnilux-vps` -> `ssh://deploy@omnilux.tv`.
 - deployment profiles are opt-in:
   - `OMNILUX_DEPLOYMENT_PROFILE=self-hosted` for normal customer installs
+- the TrueNAS updater sidecar is opt-in with `COMPOSE_PROFILES=updater` because
+  it mounts `/var/run/docker.sock`; keep it disabled unless web-triggered
+  updates are required, and set both `OMNILUX_UPDATER_URL` and a long random
+  `OMNILUX_UPDATER_TOKEN` when enabling it
 - `OMNILUX_PUBLIC_ORIGIN`, `OMNILUX_CLOUD_APP_URL`, and `OMNILUX_ALLOWED_ORIGINS` let the self-hosted runtime image declare the correct public hostname and browser origins.
 - `scripts/deploy.sh` and `scripts/deploy.example.sh` sync only deploy-owned assets and then pull the selected image tag on the target host.
 - `docker/docker-compose.yml` and `docker/docker-compose.example.yml` are local image-based examples, not legacy build inputs.

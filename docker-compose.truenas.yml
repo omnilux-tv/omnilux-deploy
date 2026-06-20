@@ -27,7 +27,7 @@ services:
       OMNILUX_DB_PATH: /app/data/omnilux.db
       OMNILUX_PLUGINS_DIR: /app/plugins
       OMNILUX_IMAGE: ${OMNILUX_IMAGE:-ghcr.io/omnilux-tv/omnilux:latest}
-      OMNILUX_UPDATER_URL: ${OMNILUX_UPDATER_URL:-http://omnilux-updater:4050}
+      OMNILUX_UPDATER_URL: ${OMNILUX_UPDATER_URL:-}
       OMNILUX_UPDATER_TOKEN: ${OMNILUX_UPDATER_TOKEN:-}
       SUPABASE_URL: ${SUPABASE_URL:-https://api.omnilux.tv}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
@@ -68,6 +68,7 @@ services:
   # Local update controller — private Docker socket helper for in-app updates
   # ---------------------------------------------------------------------------
   omnilux-updater:
+    profiles: ["updater"]
     build:
       context: ./updater
     container_name: omnilux-updater

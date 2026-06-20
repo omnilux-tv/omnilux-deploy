@@ -1,7 +1,10 @@
 # Optional merge file for iterative TrueNAS testing without GHCR.
 #
 #   docker compose -f docker-compose.truenas.yml -f docker-compose.truenas.local-build.yml \
-#     up -d --build omnilux omnilux-updater
+#     up -d --build omnilux
+#
+# Add COMPOSE_PROFILES=updater only when you intentionally want to run the
+# Docker-socket updater sidecar.
 #
 # Requires ./omnilux-src (synced omnilux repo root, including omnilux-packages submodule)
 # next to this compose file. See omnilux-deploy/scripts/deploy.sh --local-build.

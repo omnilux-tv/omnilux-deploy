@@ -94,6 +94,8 @@ OMNILUX_CLOUD_URL=https://api.omnilux.tv
 OMNILUX_CLOUD_APP_URL=https://app.omnilux.tv
 OMNILUX_RELAY_URL=wss://relay.omnilux.tv/ws/server
 OMNILUX_BROWSER_SOLVER=auto
+TMDB_API_KEY=
+LOG_LEVEL=info
 ```
 
 After editing the file:

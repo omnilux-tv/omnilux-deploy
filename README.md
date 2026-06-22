@@ -86,6 +86,10 @@ Runtime deploy assumptions:
   `omnilux-vps` -> `ssh://deploy@omnilux.tv`.
 - deployment profiles are opt-in:
   - `OMNILUX_DEPLOYMENT_PROFILE=self-hosted` for normal customer installs
+  - `OMNILUX_PRIMARY_DEPLOYMENT=docker-compose` for the minimal Docker path
+  - `OMNILUX_PRIMARY_DEPLOYMENT=truenas-custom-app` for the TrueNAS Compose path
+  - `OMNILUX_PRIMARY_DEPLOYMENT=bare-metal-linux` for the native Linux path
+  - `OMNILUX_PRIMARY_DEPLOYMENT=bare-metal-macos` for the native macOS path
 - the TrueNAS updater sidecar is opt-in with `COMPOSE_PROFILES=updater` because
   it mounts `/var/run/docker.sock`; keep it disabled unless web-triggered
   updates are required, and set both `OMNILUX_UPDATER_URL` and a long random

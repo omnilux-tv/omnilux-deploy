@@ -8,6 +8,10 @@ Universal steps for any Docker host. Official compose contracts live in this rep
 - **Compose:** use `docker-compose.truenas.yml` for GPU / DLNA / updater sidecar patterns, or `scripts/install.sh` for a minimal single-container layout under `~/.omnilux`.
 - **CLI:** use [`omnilux`](runtime-cli.md) after installation for status, restart, services, plugins, auth, updates, logs, media, and cloud connection checks.
 
+The minimal Docker path uses `OMNILUX_DEPLOYMENT_PROFILE=self-hosted` with
+`OMNILUX_PRIMARY_DEPLOYMENT=docker-compose`. The TrueNAS Compose path uses the
+same profile with `OMNILUX_PRIMARY_DEPLOYMENT=truenas-custom-app`.
+
 ## 2. Registry access (required if pulls fail with `unauthorized`)
 
 GitHub Container Registry only allows pulls the package policy allows:
@@ -68,6 +72,11 @@ OMNILUX_UPDATER_TOKEN=<long-random-token> \
 
 Leaving `OMNILUX_UPDATER_TOKEN` unset disables the updater control API; it does
 not create an unauthenticated updater.
+
+The updater waits for `OMNILUX_HEALTH_URL` after recreating the runtime. The
+default is `http://omnilux:4000/api/health`; override
+`OMNILUX_HEALTH_TIMEOUT_MS` or `OMNILUX_HEALTH_INTERVAL_MS` only when the host
+needs a longer startup window.
 
 Health: `GET http://<host>:<mapped-port>/api/health` (default TrueNAS mapping in the contract file is `38400:4000`).
 

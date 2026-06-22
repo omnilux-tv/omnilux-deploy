@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "product": "omnilux-self-hosted-runtime",
+  "composeProfile": "updater",
+  "sidecar": {
+    "service": "omnilux-updater",
+    "container": "omnilux-updater",
+    "dockerSocketMount": "/var/run/docker.sock",
+    "dockerCredentialsMount": "/root/.docker",
+    "repoDir": "/repo"
+  },
+  "environment": {
+    "runtimeUrl": "OMNILUX_UPDATER_URL",
+    "token": "OMNILUX_UPDATER_TOKEN",
+    "repoDir": "OMNILUX_REPO_DIR",
+    "composeFile": "OMNILUX_COMPOSE_FILE",
+    "image": "OMNILUX_IMAGE",
+    "healthUrl": "OMNILUX_HEALTH_URL",
+    "healthTimeoutMs": "OMNILUX_HEALTH_TIMEOUT_MS",
+    "healthIntervalMs": "OMNILUX_HEALTH_INTERVAL_MS"
+  },
+  "routes": [
+    { "method": "GET", "path": "/healthz", "auth": "none" },
+    { "method": "GET", "path": "/status", "auth": "bearer-token" },
+    { "method": "POST", "path": "/update", "auth": "bearer-token" }
+  ],
+  "states": ["idle", "running", "succeeded", "failed"],
+  "updateSteps": [
+    "docker compose -f $OMNILUX_COMPOSE_FILE pull omnilux",
+    "docker compose -f $OMNILUX_COMPOSE_FILE up -d --force-recreate omnilux",
+    "wait for $OMNILUX_HEALTH_URL"
+  ],
+  "disabledWithoutToken": true,
+  "concurrentUpdateStatus": 409
+}

@@ -22,6 +22,8 @@ services:
       - OMNILUX_DB_PATH=/app/data/omnilux.db
       - OMNILUX_PLUGINS_DIR=/app/plugins
       - OMNILUX_LIBRARY_ROOT=/data
+      - OMNILUX_DEPLOYMENT_PROFILE=${OMNILUX_DEPLOYMENT_PROFILE:-self-hosted}
+      - OMNILUX_PRIMARY_DEPLOYMENT=${OMNILUX_PRIMARY_DEPLOYMENT:-docker-compose}
       - TMDB_API_KEY=${TMDB_API_KEY:-}
       # Optional OmniLux Cloud metadata/link features. Leave blank for local-only/offline installs.
       - SUPABASE_URL=${SUPABASE_URL:-https://api.omnilux.tv}

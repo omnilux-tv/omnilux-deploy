@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "product": "omnilux-self-hosted-runtime",
+  "image": {
+    "envVar": "OMNILUX_IMAGE",
+    "default": "ghcr.io/omnilux-tv/omnilux:latest"
+  },
+  "platforms": [
+    {
+      "id": "docker",
+      "serviceMode": "compose",
+      "entrypoint": "scripts/install.sh"
+    },
+    {
+      "id": "linux",
+      "serviceMode": "systemd",
+      "entrypoint": "scripts/install/install-linux.sh"
+    },
+    {
+      "id": "macos",
+      "serviceMode": "launchd-user",
+      "entrypoint": "scripts/install/install-macos.sh"
+    },
+    {
+      "id": "truenas",
+      "serviceMode": "compose",
+      "entrypoint": "docker-compose.truenas.yml"
+    }
+  ],
+  "environment": {
+    "required": [],
+    "installerDefaults": [
+      "PORT",
+      "LIBRARY_ROOT",
+      "OMNILUX_DB_PATH",
+      "OMNILUX_PLUGINS_DIR",
+      "OMNILUX_LIBRARY_ROOT"
+    ],
+    "optional": [
+      "OMNILUX_IMAGE",
+      "OMNILUX_STORAGE_ROOT",
+      "OMNILUX_MEDIA_ROOT",
+      "TMDB_API_KEY",
+      "LOG_LEVEL",
+      "OMNILUX_DEPLOYMENT_PROFILE",
+      "OMNILUX_PRIMARY_DEPLOYMENT",
+      "OMNILUX_PUBLIC_ORIGIN",
+      "OMNILUX_CLOUD_APP_URL",
+      "OMNILUX_ALLOWED_ORIGINS",
+      "OMNILUX_ENTITLEMENT_LEASE_PUBLIC_KEY_SPKI_B64URL",
+      "OMNILUX_ALLOW_UNSIGNED_ENTITLEMENT_LEASES",
+      "OMNILUX_UPDATER_URL",
+      "OMNILUX_UPDATER_TOKEN"
+    ]
+  },
+  "volumes": [
+    {
+      "name": "omnilux-data",
+      "target": "/app/data",
+      "purpose": "runtime database and durable local state"
+    },
+    {
+      "name": "omnilux-plugins",
+      "target": "/app/plugins",
+      "purpose": "installed plugins that persist across recreates"
+    },
+    {
+      "name": "library",
+      "target": "/data",
+      "purpose": "user media library mount"
+    }
+  ],
+  "security": {
+    "requiredSecurityOpt": "no-new-privileges:true",
+    "updaterProfile": "updater",
+    "updaterSocketMount": "/var/run/docker.sock"
+  },
+  "healthcheck": {
+    "path": "/api/health",
+    "portEnvVar": "PORT",
+    "defaultPort": 4000
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "product": "omnilux-self-hosted-runtime",
+  "profileEnvVar": "OMNILUX_DEPLOYMENT_PROFILE",
+  "primaryDeploymentEnvVar": "OMNILUX_PRIMARY_DEPLOYMENT",
+  "profiles": [
+    {
+      "id": "self-hosted",
+      "owner": "omnilux-deploy",
+      "description": "Official customer-owned OmniLux runtime installs."
+    }
+  ],
+  "primaryDeployments": [
+    {
+      "id": "docker-compose",
+      "profile": "self-hosted",
+      "mode": "compose",
+      "surfaces": ["scripts/install.sh", "docker/docker-compose.yml", "docker/docker-compose.example.yml"]
+    },
+    {
+      "id": "truenas-custom-app",
+      "profile": "self-hosted",
+      "mode": "compose",
+      "surfaces": ["docker-compose.truenas.yml", "env/example.env", "docs/self-hosted-setup.md"]
+    },
+    {
+      "id": "bare-metal-linux",
+      "profile": "self-hosted",
+      "mode": "systemd",
+      "surfaces": ["scripts/install/install-linux.sh", "docs/bare-metal-linux.md"]
+    },
+    {
+      "id": "bare-metal-macos",
+      "profile": "self-hosted",
+      "mode": "launchd-user",
+      "surfaces": ["scripts/install/install-macos.sh", "docs/bare-metal-macos.md"]
+    }
+  ],
+  "externalOwners": [
+    {
+      "id": "managed-media",
+      "repo": "../omnilux-media",
+      "surface": "media.omnilux.tv"
+    },
+    {
+      "id": "operator-console",
+      "repo": "../omnilux-ops",
+      "surface": "ops.omnilux.tv"
+    }
+  ]
+}

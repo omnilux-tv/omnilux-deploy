@@ -64,11 +64,15 @@ write_env() {
     info "Existing .env found — preserving current values"
     grep -q "^PORT=" "$env_file"         || echo "PORT=$DEFAULT_PORT" >> "$env_file"
     grep -q "^LIBRARY_ROOT=" "$env_file" || echo "LIBRARY_ROOT=$DEFAULT_LIBRARY" >> "$env_file"
+    grep -q "^OMNILUX_DEPLOYMENT_PROFILE=" "$env_file" || echo "OMNILUX_DEPLOYMENT_PROFILE=self-hosted" >> "$env_file"
+    grep -q "^OMNILUX_PRIMARY_DEPLOYMENT=" "$env_file" || echo "OMNILUX_PRIMARY_DEPLOYMENT=docker-compose" >> "$env_file"
   else
     cat > "$env_file" << EOF
 # OmniLux configuration
 PORT=$DEFAULT_PORT
 LIBRARY_ROOT=$DEFAULT_LIBRARY
+OMNILUX_DEPLOYMENT_PROFILE=self-hosted
+OMNILUX_PRIMARY_DEPLOYMENT=docker-compose
 TMDB_API_KEY=
 LOG_LEVEL=info
 EOF
@@ -102,6 +106,8 @@ services:
       - OMNILUX_DB_PATH=/app/data/omnilux.db
       - OMNILUX_PLUGINS_DIR=/app/plugins
       - OMNILUX_LIBRARY_ROOT=/data
+      - OMNILUX_DEPLOYMENT_PROFILE=${OMNILUX_DEPLOYMENT_PROFILE:-self-hosted}
+      - OMNILUX_PRIMARY_DEPLOYMENT=${OMNILUX_PRIMARY_DEPLOYMENT:-docker-compose}
       - TMDB_API_KEY=${TMDB_API_KEY:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     deploy:

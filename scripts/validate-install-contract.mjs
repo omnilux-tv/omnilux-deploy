@@ -70,6 +70,20 @@ for (const envName of [
   }
 }
 
+const containerSecurityOptAssets = [
+  "scripts/install.sh",
+  "docker/docker-compose.yml",
+  "docker/docker-compose.example.yml",
+  "docker-compose.truenas.yml",
+];
+
+for (const path of containerSecurityOptAssets) {
+  const text = readText(path);
+  if (!text.includes(contract.security.requiredSecurityOpt)) {
+    errors.push(`${path} must project required security opt ${contract.security.requiredSecurityOpt}`);
+  }
+}
+
 if (errors.length > 0) {
   console.error("Install contract validation failed:");
   for (const error of errors) {

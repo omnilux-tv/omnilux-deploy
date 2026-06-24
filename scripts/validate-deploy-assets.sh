@@ -56,12 +56,6 @@ render_compose_contract -f "$ROOT/docker-compose.truenas.yml" -f "$ROOT/docker-c
 COMPOSE_PROFILES=updater render_compose_contract -f "$ROOT/docker-compose.truenas.yml" -f "$ROOT/docker-compose.truenas.local-build.yml"
 render_compose_contract -f "$ROOT/docker-compose.truenas-ix-image-local.yml"
 
-echo "==> Checking container hardening defaults"
-grep -q "no-new-privileges:true" "$ROOT/docker/docker-compose.yml"
-grep -q "no-new-privileges:true" "$ROOT/docker/docker-compose.example.yml"
-grep -q "no-new-privileges:true" "$ROOT/docker-compose.truenas.yml"
-grep -q "no-new-privileges:true" "$ROOT/scripts/install.sh"
-
 echo "==> Checking TrueNAS privileged sidecar scope"
 if truenas_compose config --services | grep -qx "omnilux-updater"; then
   echo "omnilux-updater must stay behind the updater profile" >&2

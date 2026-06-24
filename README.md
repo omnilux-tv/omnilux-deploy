@@ -33,6 +33,7 @@ Self-hosted setup:
 - Universal Docker/image path: [`docs/self-hosted-setup.md`](docs/self-hosted-setup.md)
 - Bare-metal Linux native service path: [`docs/bare-metal-linux.md`](docs/bare-metal-linux.md)
 - Bare-metal macOS user service path: [`docs/bare-metal-macos.md`](docs/bare-metal-macos.md)
+- Desktop installer artifacts: `OmniLux-macOS.pkg`, `OmniLux-Linux.AppImage`, and `OmniLux-Setup.exe`, built by the `Desktop Installers` release workflow
 - Runtime management CLI: [`docs/runtime-cli.md`](docs/runtime-cli.md)
 - Optional compose env template: [`env/example.env`](env/example.env)
 
@@ -62,6 +63,8 @@ Current deployment notes:
 - `scripts/deploy.sh`, `scripts/deploy.example.sh`, `scripts/install.sh`, `docker-compose.truenas.yml`, and the `docker/` compose bundle deploy published images and do not require product source on the target host.
 - `scripts/install/install-linux.sh` is the supported bare-metal Linux path. It extracts the published runtime image from GHCR and installs it as a native `systemd` service without Docker or source repository access.
 - `scripts/install/install-macos.sh` is the supported bare-metal macOS path. It installs a Darwin-built runtime tarball as a user-level `launchd` service without Docker or source repository access.
+- `.github/workflows/desktop-installers.yml` publishes launch-facing desktop installer artifacts named `OmniLux-macOS.pkg`, `OmniLux-Linux.AppImage`, and `OmniLux-Setup.exe` to this repo's release page, plus `.sha256` checksum sidecars for each artifact. The macOS package path requires Developer ID Installer signing and notarization secrets before it can publish a launch-ready pkg. The Windows path requires an Authenticode code-signing certificate before it can publish a launch-ready exe.
+- `scripts/publish-desktop-installers.sh <release-tag>` triggers the desktop installer workflow, waits for completion, and then verifies that the public latest-release installer URLs are available.
 - `scripts/omnilux` is the post-install runtime management CLI installed by the supported Docker, Linux, and macOS installers.
 - `scripts/install/install-windows.ps1` and `scripts/install/setup.sh` are retired legacy paths that point users back to the supported image-based flows.
 

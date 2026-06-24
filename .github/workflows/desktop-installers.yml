@@ -1,0 +1,182 @@
+name: Desktop Installers
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to attach installer artifacts to"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  macos-pkg:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure optional macOS signing and notarization
+        env:
+          MACOS_INSTALLER_CERTIFICATE_BASE64: ${{ secrets.MACOS_INSTALLER_CERTIFICATE_BASE64 }}
+          MACOS_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_INSTALLER_CERTIFICATE_PASSWORD }}
+          MACOS_INSTALLER_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_INSTALLER_KEYCHAIN_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${MACOS_INSTALLER_CERTIFICATE_BASE64}" || -z "${MACOS_INSTALLER_CERTIFICATE_PASSWORD}" || -z "${MACOS_INSTALLER_KEYCHAIN_PASSWORD}" ]]; then
+            echo "macOS installer signing secrets are not configured; building an unsigned pkg artifact."
+            exit 0
+          fi
+
+          CERTIFICATE_PATH="${RUNNER_TEMP}/developer-id-installer.p12"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/installer-signing.keychain-db"
+          printf '%s' "${MACOS_INSTALLER_CERTIFICATE_BASE64}" | base64 --decode > "${CERTIFICATE_PATH}"
+          security create-keychain -p "${MACOS_INSTALLER_KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
+          security unlock-keychain -p "${MACOS_INSTALLER_KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security import "${CERTIFICATE_PATH}" -P "${MACOS_INSTALLER_CERTIFICATE_PASSWORD}" -A -t cert -f pkcs12 -k "${KEYCHAIN_PATH}"
+          security list-keychain -d user -s "${KEYCHAIN_PATH}" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple: -s -k "${MACOS_INSTALLER_KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          echo "OMNILUX_MACOS_INSTALLER_SIGN_IDENTITY=Developer ID Installer" >> "${GITHUB_ENV}"
+
+          if [[ -z "${APP_STORE_CONNECT_API_KEY_ID}" || -z "${APP_STORE_CONNECT_API_ISSUER_ID}" || -z "${APP_STORE_CONNECT_API_KEY_P8}" ]]; then
+            echo "App Store Connect notarization secrets are not configured; signed pkg will not be notarized."
+            exit 0
+          fi
+
+          KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          printf '%s' "${APP_STORE_CONNECT_API_KEY_P8}" > "${KEY_PATH}"
+          xcrun notarytool store-credentials omnilux-installer-notary \
+            --key "${KEY_PATH}" \
+            --key-id "${APP_STORE_CONNECT_API_KEY_ID}" \
+            --issuer "${APP_STORE_CONNECT_API_ISSUER_ID}"
+          echo "OMNILUX_NOTARYTOOL_KEYCHAIN_PROFILE=omnilux-installer-notary" >> "${GITHUB_ENV}"
+      - name: Build macOS pkg
+        env:
+          OMNILUX_INSTALLER_VERSION: ${{ inputs.release_tag }}
+        run: ./scripts/package-macos-pkg.sh
+      - name: Generate macOS checksum
+        run: |
+          shasum -a 256 dist/installers/OmniLux-macOS.pkg > dist/installers/OmniLux-macOS.pkg.sha256
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: OmniLux-macOS.pkg
+          path: |
+            dist/installers/OmniLux-macOS.pkg
+            dist/installers/OmniLux-macOS.pkg.sha256
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: |
+            dist/installers/OmniLux-macOS.pkg
+            dist/installers/OmniLux-macOS.pkg.sha256
+
+  linux-appimage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build Linux AppImage
+        run: |
+          set -euo pipefail
+          mkdir -p dist/installers dist/appimage/OmniLux.AppDir/usr/bin dist/appimage/OmniLux.AppDir/usr/share/applications dist/appimage/OmniLux.AppDir/usr/share/icons/hicolor/scalable/apps
+          install -m 0755 installer/linux/AppRun dist/appimage/OmniLux.AppDir/AppRun
+          install -m 0644 installer/linux/omnilux.desktop dist/appimage/OmniLux.AppDir/omnilux.desktop
+          install -m 0644 installer/linux/omnilux.desktop dist/appimage/OmniLux.AppDir/usr/share/applications/omnilux.desktop
+          install -m 0644 installer/linux/omnilux.svg dist/appimage/OmniLux.AppDir/omnilux.svg
+          install -m 0644 installer/linux/omnilux.svg dist/appimage/OmniLux.AppDir/usr/share/icons/hicolor/scalable/apps/omnilux.svg
+          curl -fsSL -o appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool dist/appimage/OmniLux.AppDir dist/installers/OmniLux-Linux.AppImage
+      - name: Generate Linux checksum
+        run: |
+          sha256sum dist/installers/OmniLux-Linux.AppImage > dist/installers/OmniLux-Linux.AppImage.sha256
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: OmniLux-Linux.AppImage
+          path: |
+            dist/installers/OmniLux-Linux.AppImage
+            dist/installers/OmniLux-Linux.AppImage.sha256
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: |
+            dist/installers/OmniLux-Linux.AppImage
+            dist/installers/OmniLux-Linux.AppImage.sha256
+
+  windows-exe:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install NSIS
+        run: choco install nsis -y
+      - name: Materialize Windows code-signing certificate
+        shell: pwsh
+        env:
+          WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64 }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64)) {
+            Write-Warning "WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64 is not configured; building an unsigned Windows installer artifact."
+            return
+          }
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\omnilux-codesign.pfx", [Convert]::FromBase64String($env:WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64))
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/installers | Out-Null
+          $version = "${{ inputs.release_tag }}".TrimStart("v")
+          & "${env:ProgramFiles(x86)}\NSIS\makensis.exe" "/DVERSION=$version" "/DOUTFILE=dist\installers\OmniLux-Setup.exe" installer\windows\OmniLux.nsi
+      - name: Sign Windows installer
+        shell: pwsh
+        env:
+          WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD)) {
+            Write-Warning "WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD is not configured; leaving Windows installer unsigned."
+            return
+          }
+          if (-not (Test-Path "$env:RUNNER_TEMP\omnilux-codesign.pfx")) {
+            Write-Warning "Windows code-signing certificate file is not available; leaving Windows installer unsigned."
+            return
+          }
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match '\\x64\\signtool.exe$' } |
+            Select-Object -First 1
+          if (-not $signtool) {
+            throw "signtool.exe was not found in the Windows SDK."
+          }
+          & $signtool.FullName sign `
+            /fd SHA256 `
+            /td SHA256 `
+            /tr http://timestamp.digicert.com `
+            /f "$env:RUNNER_TEMP\omnilux-codesign.pfx" `
+            /p "$env:WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD" `
+            dist\installers\OmniLux-Setup.exe
+          & $signtool.FullName verify /pa /v dist\installers\OmniLux-Setup.exe
+      - name: Generate Windows checksum
+        shell: pwsh
+        run: |
+          $hash = Get-FileHash dist\installers\OmniLux-Setup.exe -Algorithm SHA256
+          "$($hash.Hash.ToLowerInvariant())  OmniLux-Setup.exe" | Set-Content -Encoding ascii dist\installers\OmniLux-Setup.exe.sha256
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: OmniLux-Setup.exe
+          path: |
+            dist/installers/OmniLux-Setup.exe
+            dist/installers/OmniLux-Setup.exe.sha256
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: |
+            dist/installers/OmniLux-Setup.exe
+            dist/installers/OmniLux-Setup.exe.sha256

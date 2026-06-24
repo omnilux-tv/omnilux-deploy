@@ -47,6 +47,10 @@ node "$ROOT/scripts/validate-updater-operation.mjs"
 echo "==> Validating install docs projection"
 node "$ROOT/scripts/validate-docs-projection.mjs"
 
+echo "==> Validating desktop installer artifacts"
+node "$ROOT/scripts/validate-desktop-installers.mjs"
+bash -n "$ROOT/installer/linux/AppRun"
+
 echo "==> Rendering Docker Compose contracts"
 render_compose_contract -f "$ROOT/docker/docker-compose.yml"
 render_compose_contract -f "$ROOT/docker/docker-compose.example.yml"

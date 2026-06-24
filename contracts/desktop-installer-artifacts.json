@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "product": "omnilux-self-hosted-desktop-installers",
+  "releaseRepository": "omnilux-tv/omnilux-deploy",
+  "artifacts": [
+    {
+      "id": "macos-pkg",
+      "platform": "macos",
+      "fileName": "OmniLux-macOS.pkg",
+      "checksumFileName": "OmniLux-macOS.pkg.sha256",
+      "builder": "scripts/package-macos-pkg.sh",
+      "runtimeInstaller": "scripts/install/install-macos.sh"
+    },
+    {
+      "id": "linux-appimage",
+      "platform": "linux-desktop",
+      "fileName": "OmniLux-Linux.AppImage",
+      "checksumFileName": "OmniLux-Linux.AppImage.sha256",
+      "builder": ".github/workflows/desktop-installers.yml",
+      "runtimeInstaller": "scripts/install/install-linux.sh"
+    },
+    {
+      "id": "windows-exe",
+      "platform": "windows",
+      "fileName": "OmniLux-Setup.exe",
+      "checksumFileName": "OmniLux-Setup.exe.sha256",
+      "builder": "installer/windows/OmniLux.nsi",
+      "runtimeInstaller": "installer/windows/install-omnilux.ps1"
+    }
+  ],
+  "dockerOneLine": "curl -fsSL https://omnilux.tv/self-hosted/install.sh | bash"
+}

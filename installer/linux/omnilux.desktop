@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=OmniLux Installer
+Comment=Install the OmniLux self-hosted runtime
+Exec=AppRun
+Icon=omnilux
+Categories=AudioVideo;Network;
+Terminal=false

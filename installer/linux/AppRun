@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+INSTALLER_URL="${OMNILUX_LINUX_INSTALLER_URL:-https://omnilux.tv/self-hosted/linux/install.sh}"
+COMMAND="curl -fsSL '${INSTALLER_URL}' | sudo bash"
+
+run_terminal() {
+  local terminal="$1"
+  exec "${terminal}" -e bash -lc "${COMMAND}; printf '\nOmniLux installer finished. Press Enter to close...'; read -r _"
+}
+
+if command -v zenity >/dev/null 2>&1; then
+  zenity --question \
+    --title="Install OmniLux" \
+    --text="Install OmniLux as a native Linux system service?\n\nThis uses sudo and installs the official self-hosted runtime." \
+    --ok-label="Install" \
+    --cancel-label="Cancel" || exit 0
+fi
+
+if command -v x-terminal-emulator >/dev/null 2>&1; then
+  run_terminal x-terminal-emulator
+fi
+
+if command -v gnome-terminal >/dev/null 2>&1; then
+  exec gnome-terminal -- bash -lc "${COMMAND}; printf '\nOmniLux installer finished. Press Enter to close...'; read -r _"
+fi
+
+if command -v konsole >/dev/null 2>&1; then
+  run_terminal konsole
+fi
+
+exec bash -lc "${COMMAND}"

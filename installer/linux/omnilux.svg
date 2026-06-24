@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="OmniLux">
+  <rect width="256" height="256" rx="48" fill="#111827"/>
+  <circle cx="128" cy="128" r="78" fill="#16a34a"/>
+  <circle cx="128" cy="128" r="42" fill="#f8fafc"/>
+  <path d="M128 40 148 108 216 128 148 148 128 216 108 148 40 128 108 108Z" fill="#38bdf8" opacity=".9"/>
+</svg>

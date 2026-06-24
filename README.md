@@ -9,6 +9,7 @@ This repository is part of the official OmniLux multi-repo workspace. Use the ro
 - Onboarding: `../ONBOARDING.md`
 - Manifest: `../workspace.repositories.json`
 - Contracts: `../contracts/`
+- Context: `./CONTEXT.md`
 
 This repo is the official deployment contract for the self-hosted OmniLux runtime.
 
@@ -63,6 +64,14 @@ Current deployment notes:
 - `scripts/install/install-macos.sh` is the supported bare-metal macOS path. It installs a Darwin-built runtime tarball as a user-level `launchd` service without Docker or source repository access.
 - `scripts/omnilux` is the post-install runtime management CLI installed by the supported Docker, Linux, and macOS installers.
 - `scripts/install/install-windows.ps1` and `scripts/install/setup.sh` are retired legacy paths that point users back to the supported image-based flows.
+
+## Validation
+
+Run the repo-local validation path before changing official self-hosted deploy assets:
+
+```bash
+./scripts/validate-deploy-assets.sh
+```
 
 Explicitly not copied in this pass:
 

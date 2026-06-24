@@ -15,6 +15,7 @@ Unicode true
 VIProductVersion "${VERSION}.0"
 VIAddVersionKey "ProductName" "OmniLux"
 VIAddVersionKey "CompanyName" "OmniLux"
+VIAddVersionKey "LegalCopyright" "Copyright OmniLux"
 VIAddVersionKey "FileDescription" "OmniLux Windows Installer"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "ProductVersion" "${VERSION}"
@@ -35,7 +36,7 @@ Section "Install"
 SectionEnd
 
 Section "Uninstall"
-  ExecWait 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "docker compose --env-file $env:LOCALAPPDATA\OmniLux\.env -f $env:LOCALAPPDATA\OmniLux\docker-compose.yml down"'
+  ExecWait 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "docker compose --env-file $$env:LOCALAPPDATA\OmniLux\.env -f $$env:LOCALAPPDATA\OmniLux\docker-compose.yml down"'
   Delete "$SMPROGRAMS\OmniLux\Open OmniLux.lnk"
   Delete "$SMPROGRAMS\OmniLux\Uninstall OmniLux.lnk"
   RMDir "$SMPROGRAMS\OmniLux"

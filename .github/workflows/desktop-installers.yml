@@ -132,7 +132,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist/installers | Out-Null
           $version = "${{ inputs.release_tag }}".TrimStart("v")
-          & "${env:ProgramFiles(x86)}\NSIS\makensis.exe" "/DVERSION=$version" "/DOUTFILE=dist\installers\OmniLux-Setup.exe" installer\windows\OmniLux.nsi
+          $outfile = Join-Path (Resolve-Path dist/installers) "OmniLux-Setup.exe"
+          & "${env:ProgramFiles(x86)}\NSIS\makensis.exe" "/DVERSION=$version" "/DOUTFILE=$outfile" installer\windows\OmniLux.nsi
       - name: Sign Windows installer
         shell: pwsh
         env:

@@ -4,15 +4,24 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT/env/example.env"
 
-command -v docker >/dev/null 2>&1 || {
-  echo "Missing dependency: docker" >&2
-  exit 1
+require_command() {
+  local name="$1"
+  command -v "$name" >/dev/null 2>&1 || {
+    echo "Missing dependency: $name" >&2
+    exit 1
+  }
 }
 
-command -v node >/dev/null 2>&1 || {
-  echo "Missing dependency: node" >&2
-  exit 1
+render_compose_contract() {
+  docker compose --env-file "$ENV_FILE" "$@" config >/dev/null
 }
+
+truenas_compose() {
+  docker compose --env-file "$ENV_FILE" -f "$ROOT/docker-compose.truenas.yml" "$@"
+}
+
+require_command docker
+require_command node
 
 echo "==> Syntax-checking shell scripts"
 bash -n "$ROOT"/scripts/*.sh "$ROOT"/scripts/omnilux "$ROOT"/scripts/install/*.sh
@@ -39,13 +48,13 @@ echo "==> Validating install docs projection"
 node "$ROOT/scripts/validate-docs-projection.mjs"
 
 echo "==> Rendering Docker Compose contracts"
-docker compose --env-file "$ENV_FILE" -f "$ROOT/docker/docker-compose.yml" config >/dev/null
-docker compose --env-file "$ENV_FILE" -f "$ROOT/docker/docker-compose.example.yml" config >/dev/null
-docker compose --env-file "$ENV_FILE" -f "$ROOT/docker-compose.truenas.yml" config >/dev/null
-COMPOSE_PROFILES=updater docker compose --env-file "$ENV_FILE" -f "$ROOT/docker-compose.truenas.yml" config >/dev/null
-docker compose --env-file "$ENV_FILE" -f "$ROOT/docker-compose.truenas.yml" -f "$ROOT/docker-compose.truenas.local-build.yml" config >/dev/null
-COMPOSE_PROFILES=updater docker compose --env-file "$ENV_FILE" -f "$ROOT/docker-compose.truenas.yml" -f "$ROOT/docker-compose.truenas.local-build.yml" config >/dev/null
-docker compose --env-file "$ENV_FILE" -f "$ROOT/docker-compose.truenas-ix-image-local.yml" config >/dev/null
+render_compose_contract -f "$ROOT/docker/docker-compose.yml"
+render_compose_contract -f "$ROOT/docker/docker-compose.example.yml"
+render_compose_contract -f "$ROOT/docker-compose.truenas.yml"
+COMPOSE_PROFILES=updater render_compose_contract -f "$ROOT/docker-compose.truenas.yml"
+render_compose_contract -f "$ROOT/docker-compose.truenas.yml" -f "$ROOT/docker-compose.truenas.local-build.yml"
+COMPOSE_PROFILES=updater render_compose_contract -f "$ROOT/docker-compose.truenas.yml" -f "$ROOT/docker-compose.truenas.local-build.yml"
+render_compose_contract -f "$ROOT/docker-compose.truenas-ix-image-local.yml"
 
 echo "==> Checking container hardening defaults"
 grep -q "no-new-privileges:true" "$ROOT/docker/docker-compose.yml"
@@ -54,12 +63,11 @@ grep -q "no-new-privileges:true" "$ROOT/docker-compose.truenas.yml"
 grep -q "no-new-privileges:true" "$ROOT/scripts/install.sh"
 
 echo "==> Checking TrueNAS privileged sidecar scope"
-if docker compose --env-file "$ENV_FILE" -f "$ROOT/docker-compose.truenas.yml" config --services | grep -qx "omnilux-updater"; then
+if truenas_compose config --services | grep -qx "omnilux-updater"; then
   echo "omnilux-updater must stay behind the updater profile" >&2
   exit 1
 fi
-COMPOSE_PROFILES=updater docker compose --env-file "$ENV_FILE" -f "$ROOT/docker-compose.truenas.yml" config --services | grep -qx "omnilux-updater"
-COMPOSE_PROFILES=updater docker compose --env-file "$ENV_FILE" -f "$ROOT/docker-compose.truenas.yml" config \
-  | grep -q "target: /var/run/docker.sock"
+COMPOSE_PROFILES=updater truenas_compose config --services | grep -qx "omnilux-updater"
+COMPOSE_PROFILES=updater truenas_compose config | grep -q "target: /var/run/docker.sock"
 
 echo "Deploy asset validation passed."

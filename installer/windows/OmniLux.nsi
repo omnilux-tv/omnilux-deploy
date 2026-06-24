@@ -26,7 +26,7 @@ UninstPage instfiles
 
 Section "Install"
   SetOutPath "$INSTDIR"
-  File "installer\windows\install-omnilux.ps1"
+  File "install-omnilux.ps1"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateDirectory "$SMPROGRAMS\OmniLux"
   CreateShortcut "$SMPROGRAMS\OmniLux\Open OmniLux.lnk" "http://localhost:4000"

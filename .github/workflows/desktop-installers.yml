@@ -7,6 +7,11 @@ on:
         description: "Release tag to attach installer artifacts to"
         required: true
         type: string
+      allow_unsigned_artifacts:
+        description: "Allow unsigned/non-notarized desktop artifacts for non-launch validation only"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -24,11 +29,16 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          ALLOW_UNSIGNED_ARTIFACTS: ${{ inputs.allow_unsigned_artifacts }}
         run: |
           set -euo pipefail
           if [[ -z "${MACOS_INSTALLER_CERTIFICATE_BASE64}" || -z "${MACOS_INSTALLER_CERTIFICATE_PASSWORD}" || -z "${MACOS_INSTALLER_KEYCHAIN_PASSWORD}" ]]; then
-            echo "macOS installer signing secrets are not configured; building an unsigned pkg artifact."
-            exit 0
+            if [[ "${ALLOW_UNSIGNED_ARTIFACTS}" == "true" ]]; then
+              echo "macOS installer signing secrets are not configured; building an unsigned pkg artifact because allow_unsigned_artifacts=true."
+              exit 0
+            fi
+            echo "macOS installer signing secrets are required for launch-ready pkg artifacts." >&2
+            exit 1
           fi
 
           CERTIFICATE_PATH="${RUNNER_TEMP}/developer-id-installer.p12"
@@ -43,8 +53,12 @@ jobs:
           echo "OMNILUX_MACOS_INSTALLER_SIGN_IDENTITY=Developer ID Installer" >> "${GITHUB_ENV}"
 
           if [[ -z "${APP_STORE_CONNECT_API_KEY_ID}" || -z "${APP_STORE_CONNECT_API_ISSUER_ID}" || -z "${APP_STORE_CONNECT_API_KEY_P8}" ]]; then
-            echo "App Store Connect notarization secrets are not configured; signed pkg will not be notarized."
-            exit 0
+            if [[ "${ALLOW_UNSIGNED_ARTIFACTS}" == "true" ]]; then
+              echo "App Store Connect notarization secrets are not configured; signed pkg will not be notarized because allow_unsigned_artifacts=true."
+              exit 0
+            fi
+            echo "App Store Connect notarization secrets are required for launch-ready pkg artifacts." >&2
+            exit 1
           fi
 
           KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
@@ -120,10 +134,15 @@ jobs:
         shell: pwsh
         env:
           WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64 }}
+          ALLOW_UNSIGNED_ARTIFACTS: ${{ inputs.allow_unsigned_artifacts }}
         run: |
           $ErrorActionPreference = "Stop"
           if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64)) {
-            Write-Warning "WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64 is not configured; building an unsigned Windows installer artifact."
+            if ($env:ALLOW_UNSIGNED_ARTIFACTS -eq "true") {
+              Write-Warning "WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64 is not configured; building an unsigned Windows installer artifact because allow_unsigned_artifacts=true."
+              return
+            }
+            throw "WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64 is required for launch-ready Windows installer artifacts."
             return
           }
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\omnilux-codesign.pfx", [Convert]::FromBase64String($env:WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64))
@@ -138,14 +157,23 @@ jobs:
         shell: pwsh
         env:
           WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD }}
+          ALLOW_UNSIGNED_ARTIFACTS: ${{ inputs.allow_unsigned_artifacts }}
         run: |
           $ErrorActionPreference = "Stop"
           if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD)) {
-            Write-Warning "WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD is not configured; leaving Windows installer unsigned."
+            if ($env:ALLOW_UNSIGNED_ARTIFACTS -eq "true") {
+              Write-Warning "WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD is not configured; leaving Windows installer unsigned because allow_unsigned_artifacts=true."
+              return
+            }
+            throw "WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD is required for launch-ready Windows installer artifacts."
             return
           }
           if (-not (Test-Path "$env:RUNNER_TEMP\omnilux-codesign.pfx")) {
-            Write-Warning "Windows code-signing certificate file is not available; leaving Windows installer unsigned."
+            if ($env:ALLOW_UNSIGNED_ARTIFACTS -eq "true") {
+              Write-Warning "Windows code-signing certificate file is not available; leaving Windows installer unsigned because allow_unsigned_artifacts=true."
+              return
+            }
+            throw "Windows code-signing certificate file is required for launch-ready Windows installer artifacts."
             return
           }
           $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |

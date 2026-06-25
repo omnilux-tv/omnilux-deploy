@@ -13,6 +13,12 @@ const readme = readText("README.md");
 requireArray(contract.artifacts, "artifacts");
 requireString(contract.dockerOneLine, "dockerOneLine");
 requireIncludes(contract.dockerOneLine, "curl -fsSL https://omnilux.tv/self-hosted/install.sh | bash", "docker one-line command");
+requireIncludes(workflow, "allow_unsigned_artifacts", "non-launch unsigned installer escape hatch");
+requireIncludes(workflow, "default: false", "unsigned installer escape hatch default");
+requireIncludes(workflow, "macOS installer signing secrets are required for launch-ready pkg artifacts.", "macOS launch signing hard failure");
+requireIncludes(workflow, "App Store Connect notarization secrets are required for launch-ready pkg artifacts.", "macOS launch notarization hard failure");
+requireIncludes(workflow, "WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64 is required for launch-ready Windows installer artifacts.", "Windows launch certificate hard failure");
+requireIncludes(workflow, "WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD is required for launch-ready Windows installer artifacts.", "Windows launch signing password hard failure");
 
 for (const artifact of contract.artifacts ?? []) {
   requireString(artifact.id, "artifact.id");

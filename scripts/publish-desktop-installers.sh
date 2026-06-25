@@ -28,8 +28,33 @@ command -v curl >/dev/null 2>&1 || {
   exit 1
 }
 
+check_required_secret_names() {
+  local names
+  local missing=()
+  names="$(gh secret list --repo "${REPO}" --json name -q '.[].name')"
+  for required in \
+    MACOS_INSTALLER_CERTIFICATE_BASE64 \
+    MACOS_INSTALLER_CERTIFICATE_PASSWORD \
+    MACOS_INSTALLER_KEYCHAIN_PASSWORD \
+    APP_STORE_CONNECT_API_KEY_ID \
+    APP_STORE_CONNECT_API_ISSUER_ID \
+    APP_STORE_CONNECT_API_KEY_P8 \
+    WINDOWS_CODE_SIGNING_CERTIFICATE_BASE64 \
+    WINDOWS_CODE_SIGNING_CERTIFICATE_PASSWORD; do
+    if ! grep -Fxq "${required}" <<<"${names}"; then
+      missing+=("${required}")
+    fi
+  done
+
+  if (( ${#missing[@]} > 0 )); then
+    echo "Cannot publish launch desktop installers; ${REPO} is missing secret(s): ${missing[*]}" >&2
+    exit 1
+  fi
+}
+
 node "${ROOT}/scripts/validate-desktop-installers.mjs"
 bash -n "${ROOT}/scripts/package-macos-pkg.sh" "${ROOT}/installer/linux/AppRun"
+check_required_secret_names
 
 before_ids="$(gh run list --repo "${REPO}" --workflow "${WORKFLOW}" --limit 20 --json databaseId --jq '.[].databaseId')"
 gh workflow run "${WORKFLOW}" --repo "${REPO}" --field "release_tag=${RELEASE_TAG}"

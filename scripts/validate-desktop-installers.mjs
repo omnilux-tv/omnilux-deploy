@@ -71,6 +71,9 @@ requireIncludes(publishScript, "verify-public-desktop-installers.sh", "desktop i
 requireIncludes(verifyScript, "OmniLux-macOS.pkg", "public macOS installer verification");
 requireIncludes(verifyScript, "OmniLux-Linux.AppImage", "public Linux installer verification");
 requireIncludes(verifyScript, "OmniLux-Setup.exe", "public Windows installer verification");
+requireIncludes(verifyScript, "gh run list", "public installer workflow revision verification");
+requireIncludes(verifyScript, "EXPECTED_SHA", "public installer expected revision check");
+requireIncludes(verifyScript, "Latest public desktop installer workflow success is not from the expected revision.", "public installer stale workflow failure");
 
 for (const secret of [
   "MACOS_INSTALLER_CERTIFICATE_BASE64",

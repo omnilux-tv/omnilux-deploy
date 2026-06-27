@@ -11,6 +11,8 @@ services:
     pull_policy: always
     container_name: omnilux
     restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 90s
     ports:
       - "4000:4000"          # Web UI + API
       - "1900:1900/udp"      # DLNA/SSDP discovery

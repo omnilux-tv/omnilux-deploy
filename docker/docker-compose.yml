@@ -4,6 +4,8 @@ services:
     pull_policy: always
     container_name: omnilux
     restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 90s
     ports:
       - "${PORT:-4000}:4000"
       - "1900:1900/udp"   # DLNA/SSDP discovery
@@ -28,6 +30,9 @@ services:
       # Optional OmniLux Cloud metadata/link features. Leave blank for local-only/offline installs.
       - SUPABASE_URL=${SUPABASE_URL:-https://api.omnilux.tv}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
+      - OMNILUX_PUBLIC_ORIGIN=${OMNILUX_PUBLIC_ORIGIN:-}
+      - OMNILUX_CLOUD_APP_URL=${OMNILUX_CLOUD_APP_URL:-https://app.omnilux.tv}
+      - OMNILUX_ALLOWED_ORIGINS=${OMNILUX_ALLOWED_ORIGINS:-}
       - OMNILUX_CLOUD_METADATA_BROKER_TOKEN=${OMNILUX_CLOUD_METADATA_BROKER_TOKEN:-}
       - OMNILUX_ENTITLEMENT_LEASE_PUBLIC_KEY_SPKI_B64URL=${OMNILUX_ENTITLEMENT_LEASE_PUBLIC_KEY_SPKI_B64URL:-}
       - OMNILUX_ALLOW_UNSIGNED_ENTITLEMENT_LEASES=${OMNILUX_ALLOW_UNSIGNED_ENTITLEMENT_LEASES:-false}

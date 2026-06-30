@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "product": "omnilux-self-hosted-runtime",
-  "platforms": ["docker", "truenas", "linux", "macos", "cli"],
+  "platforms": ["docker", "truenas", "linux", "macos", "windows", "cli"],
   "scopes": [
     "compose-substitution",
     "runtime-env",
